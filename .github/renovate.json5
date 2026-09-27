@@ -1,0 +1,26 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:best-practices",
+  ],
+
+  // Renovate updates the workflows' SHA-pinned actions here and nothing else.
+  // The `renovate` annotations on a module's pins serve a repository that
+  // copies the module with `tect copy module`; nothing bumps them in this
+  // collection.
+  "enabledManagers": ["github-actions"],
+  // The pull request title check requires a typed subject, and Renovate
+  // otherwise guesses the commit style from the history.
+  "semanticCommits": "enabled",
+  "rebaseWhen": "never",
+  "timezone": "Etc/UTC",
+  "schedule": ["before 6am"],
+
+  "packageRules": [
+    {
+      "matchPackageNames": ["*"],
+      "groupName": "scheduled updates",
+      "automerge": true,
+    },
+  ],
+}

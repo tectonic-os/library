@@ -125,6 +125,8 @@ def gha_output(**kwargs):
             fh.write(f"{key}={value}\n")
 
 def main():
+    if len(sys.argv) != 2:
+        sys.exit(__doc__)
     report_path = sys.argv[1]
     today = datetime.date.today()
 
@@ -176,8 +178,8 @@ def main():
     lines = [
         f"**Status: {status}** ({reason})",
         "",
-        f"| | version |",
-        f"|---|---|",
+        "| | version |",
+        "|---|---|",
         f"| COPR `kernel-cachyos` | {copr_full} |",
         f"| newest same-series stable | {newest or 'series EOL'} |",
         "",

@@ -94,9 +94,10 @@ jobs:
   # Every leg lints the repository it scaffolds, and that lint prunes the
   # `modules/.remote` the collection is imported into, so the collection's own
   # shell is linted here or nowhere. `.shellcheckrc` carries what a consumer's
-  # disables, so a local `shellcheck` agrees with this job.
+  # disables, so a local `shellcheck` agrees with this job. `ruff.toml` holds
+  # the rule set, so a local `ruff check` agrees with it too.
   lint:
-    name: Lint the collection's shell
+    name: Lint the collection's shell and Python
     runs-on: ubuntu-24.04
     permissions:
       contents: read
@@ -129,6 +130,20 @@ jobs:
           shellcheck "${helpers[@]}"
           shfmt -i 4 -ci -bn -sr -d "${scripts[@]}" "${repos[@]}" "${helpers[@]}"
           echo "::notice::${#scripts[@]} scripts, ${#repos[@]} repo files and ${#helpers[@]} helpers are clean"
+
+      - name: Install ruff
+        env:
+          RUFF_VERSION: "0.16.9"
+          RUFF_SHA256: 1bfbb819b5d4f9af501748862276b60e412d336034d99387691a4d4bce7a6f13
+        run: |
+          set -euo pipefail
+          curl -fsSLo /tmp/ruff.tar.gz \
+            "https://github.com/astral-sh/ruff/releases/download/${RUFF_VERSION}/ruff-x86_64-unknown-linux-gnu.tar.gz"
+          echo "${RUFF_SHA256}  /tmp/ruff.tar.gz" | sha256sum -c -
+          sudo tar -xzf /tmp/ruff.tar.gz -C /usr/local/bin --strip-components=1
+
+      - name: Lint Python
+        run: ruff check
 
   # Deliberately not an `image` in the matrix below: it shares none of that
   # job's steps — no tool, no scaffold, no import, no build — so threading it

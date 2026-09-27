@@ -33,7 +33,7 @@ def pins(text):
             for field, value in fields.items():
                 out.append(
                     (
-                        "ASSET_%s_%s" % (name.upper().replace("-", "_"), field.upper()),
+                        f"ASSET_{name.upper().replace('-', '_')}_{field.upper()}",
                         value.replace("{version}", version),
                     )
                 )
@@ -50,7 +50,7 @@ def main(argv):
         sys.exit(__doc__)
     text = (Path(argv[1]) / "module.kdl").read_text()
     for name, value in pins(text):
-        print("%s=%s" % (name, value))
+        print(f"{name}={value}")
 
 
 if __name__ == "__main__":

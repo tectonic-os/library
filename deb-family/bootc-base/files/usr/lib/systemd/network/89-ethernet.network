@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: systemd contributors
+# SPDX-FileCopyrightText: The tectonic-os contributors
+# SPDX-License-Identifier: Apache-2.0 AND MIT-0
 # systemd's own `89-ethernet.network.example`, activated verbatim — the match
 # rules are upstream's rather than ours, which is the point: `Kind=!*` is what
 # keeps this off virtual devices, so podman's bridges and veths never take a

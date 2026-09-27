@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2012-2017 Red Hat, Inc.
+# SPDX-License-Identifier: BSD-3-Clause
 -a always,exit -F arch=b32 -S chmod -S fchmod -S fchmodat -S fchmodat2 -F auid>=1000 -F auid!=unset -F key=perm_mod
 -a always,exit -F arch=b64 -S chmod -S fchmod -S fchmodat -S fchmodat2 -F auid>=1000 -F auid!=unset -F key=perm_mod
 -a always,exit -F arch=b32 -S chown -S fchown -S fchownat -S lchown -F auid>=1000 -F auid!=unset -F key=perm_mod

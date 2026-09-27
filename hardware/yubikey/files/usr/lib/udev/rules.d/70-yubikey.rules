@@ -1,0 +1,3 @@
+# systemd's `60-fido-id.rules` opens only the FIDO interface to the seat user.
+# `ykman otp` reaches the YubiKey through its other hidraw nodes.
+ACTION!="remove", SUBSYSTEM=="hidraw", ATTRS{idVendor}=="1050", TAG+="uaccess"

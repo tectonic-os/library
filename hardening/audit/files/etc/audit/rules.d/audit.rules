@@ -1,15 +1,5 @@
-## This file should be included whenever syscall auditing is desired. It sets
-## up some common parameters needed no matter what additional rules get added.
-
-## First rule - delete all
 -D
-
-## Increase the buffers to survive stress events.
-## Make this bigger for busy systems
+# `immutable.rules` sets `-f 2`, so a lost record halts the machine. The backlog
+# and its wait are sized to hold a burst of events instead of losing them.
 -b 8192
-
-## This determine how long to wait in burst of events
 --backlog_wait_time 60000
-
-## Set failure mode to syslog
-

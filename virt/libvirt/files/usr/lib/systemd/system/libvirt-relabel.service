@@ -1,5 +1,7 @@
+# SPDX-FileCopyrightText: Universal Blue contributors
+# SPDX-License-Identifier: Apache-2.0
 [Unit]
-Description=Relabel libvirt directories for SELinux
+Description=Workaround to relabel libvirt files and directories
 ConditionPathIsDirectory=/var/lib/libvirt/
 After=local-fs.target
 

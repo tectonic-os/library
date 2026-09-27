@@ -1,3 +1,5 @@
+# SPDX-FileCopyrightText: 2012-2017 Red Hat, Inc.
+# SPDX-License-Identifier: BSD-3-Clause
 -a always,exit -F arch=b32 -F path=/var/log/faillock -F perm=wa -F key=logins
 -a always,exit -F arch=b64 -F path=/var/log/faillock -F perm=wa -F key=logins
 -a always,exit -F arch=b32 -F path=/var/log/lastlog -F perm=wa -F key=logins

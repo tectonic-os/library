@@ -48,6 +48,10 @@ on:
 #               so it costs seconds, and it fails on the one defect a widened
 #               module can introduce that `tect check` cannot see: a package
 #               name that does not exist, or a set apt cannot satisfy.
+# Each job grants itself what it needs.
+permissions:
+  contents: read
+
 jobs:
   # The two deb `collection` legs carry the largest module set and are the
   # queue's bottleneck, which is why `NEXT-42` parked the Debian one. They are

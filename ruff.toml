@@ -1,0 +1,4 @@
+# ruff's default rules plus bugbear's likely bugs, so a local `ruff check` and
+# CI select the same set however ruff's defaults move.
+[lint]
+select = ["E4", "E7", "E9", "F", "B"]

@@ -554,8 +554,11 @@ jobs:
       # initramfs — are all invisible to `generate` and lint, so a pull request
       # that skipped it would not exercise that content at all. It costs a
       # Rust build on every PR; drop the third clause to take that back.
-      # The changed leg proves the import and never builds.
+      # The changed leg proves the import and never builds. The hardening steps
+      # boot, scan and report on the built image, so each one also asks that
+      # this step ran.
       - name: Build
+        id: build
         if: >-
           matrix.image != 'changed'
           && (matrix.family == 'fedora' || matrix.image == 'bootc-base'
@@ -623,7 +626,7 @@ jobs:
       # reads it before it rewrites it, so a regression is one red run and then
       # the new floor, rather than a cache entry somebody has to go and delete.
       - name: Restore the last scan's pass set
-        if: matrix.image == 'hardening'
+        if: matrix.image == 'hardening' && steps.build.outcome != 'skipped'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/baseline.json
@@ -633,7 +636,7 @@ jobs:
       # The consumer smoke test's boot path: installed as the recipe says, and
       # booted, so the kernel, the services and the mounts are the machine's.
       - name: Boot the image
-        if: matrix.image == 'hardening'
+        if: matrix.image == 'hardening' && steps.build.outcome != 'skipped'
         timeout-minutes: 30
         run: |
           set -euo pipefail
@@ -647,7 +650,7 @@ jobs:
       # with, installed onto the machine under `bootc usr-overlay`, which lasts
       # until the next boot. Files travel over ssh as root's own.
       - name: Evaluate the rules
-        if: matrix.image == 'hardening'
+        if: matrix.image == 'hardening' && steps.build.outcome != 'skipped'
         run: |
           set -euo pipefail
           s() {
@@ -676,7 +679,7 @@ jobs:
           echo "DATASTREAM=${RUNNER_TEMP}/ds.xml" >> "$GITHUB_ENV"
 
       - name: Compare what was declared to what was measured
-        if: matrix.image == 'hardening'
+        if: matrix.image == 'hardening' && steps.build.outcome != 'skipped'
         run: |
           set -euo pipefail
           # `--base-scan` is the committed bare-base pass set, so a claim the
@@ -734,7 +737,7 @@ jobs:
 
       # The report counts failures and names none; the ARF names them.
       - name: Keep the scan report
-        if: always() && matrix.image == 'hardening'
+        if: always() && matrix.image == 'hardening' && steps.build.outcome != 'skipped'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: arf-${{ matrix.image }}
@@ -743,17 +746,17 @@ jobs:
           if-no-files-found: ignore
 
       - name: Serial console
-        if: failure() && matrix.image == 'hardening'
+        if: failure() && matrix.image == 'hardening' && steps.build.outcome != 'skipped'
         run: |
           cat "${RUNNER_TEMP}/vm/qemu.log" "${RUNNER_TEMP}/vm/console.log" 2> /dev/null || true
 
       - name: Stop qemu
-        if: always() && matrix.image == 'hardening'
+        if: always() && matrix.image == 'hardening' && steps.build.outcome != 'skipped'
         run: |
           kill "$(cat "${RUNNER_TEMP}/vm/qemu.pid" 2> /dev/null)" 2> /dev/null || true
 
       - name: Save the pass set for the next scan
-        if: always() && matrix.image == 'hardening'
+        if: always() && matrix.image == 'hardening' && steps.build.outcome != 'skipped'
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/baseline.json

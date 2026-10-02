@@ -4,7 +4,7 @@ name: DCO
 # Developer Certificate of Origin. Renovate signs off through `:gitSignOff`.
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
+    types: [opened, reopened, synchronize, edited]
 
 permissions: {}
 
@@ -15,14 +15,16 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
         with:
           fetch-depth: 0
           persist-credentials: false
 
       # The commits are the ones the base branch does not hold yet, because a
-      # branch updated from `main` can carry commits past `base.sha`. A merge
-      # commit is skipped, since GitHub's "Update branch" writes one unsigned.
+      # branch updated from `main` can carry commits past `base.sha`. An
+      # unsigned two-parent merge is allowed only when its tree is the clean,
+      # automatic result of merging those parents; GitHub's "Update branch"
+      # can write such a commit without a trailer.
       - name: Check every commit is signed off by its author
         env:
           BASE_REF: ${{ github.base_ref }}
@@ -33,9 +35,19 @@ jobs:
           while read -r sha; do
             want="Signed-off-by: $(git log -1 --format='%an <%ae>' "$sha")"
             trailers="$(git log -1 --format='%(trailers:key=Signed-off-by)' "$sha")"
-            if ! grep -qxF "$want" <<< "$trailers"; then
-              echo "::error::${sha} is not signed off by its author. Add '${want}' with 'git commit --amend -s' or 'git rebase --signoff'."
-              missing=1
+            if grep -qxF "$want" <<< "$trailers"; then
+              continue
             fi
-          done < <(git rev-list --no-merges "$HEAD" --not "origin/${BASE_REF}")
+
+            read -ra commit <<< "$(git rev-list --parents -n 1 "$sha")"
+            parents=("${commit[@]:1}")
+            if [ "${#parents[@]}" -eq 2 ] &&
+              merged="$(git merge-tree --write-tree "${parents[0]}" "${parents[1]}" 2>/dev/null)" &&
+              [ "$merged" = "$(git rev-parse "${sha}^{tree}")" ]; then
+              continue
+            fi
+
+            echo "::error::${sha} is not signed off by its author. Add '${want}' with 'git commit --amend -s' or 'git rebase --signoff'."
+            missing=1
+          done < <(git rev-list "$HEAD" --not "origin/${BASE_REF}")
           exit "$missing"

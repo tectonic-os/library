@@ -572,7 +572,7 @@ jobs:
 
       - name: Run lint
         run: |
-          "${ROOT}/scripts/lint.sh"
+          "${ROOT}/generated/scripts/lint.sh"
 
       - name: Run the tests the collection ships
         env:
@@ -713,7 +713,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends qemu-system-x86 ovmf
           # qemu runs as the runner user, which is in no group that owns it
           sudo chmod 666 /dev/kvm
-          "${ROOT}/scripts/smoke.sh" "${IMAGE}:latest" "${RUNNER_TEMP}/vm"
+          "${ROOT}/generated/scripts/smoke.sh" "${IMAGE}:latest" "${RUNNER_TEMP}/vm"
 
       # The content is the image's own, the revision the build remediated
       # with, installed onto the machine under `bootc usr-overlay`, which lasts

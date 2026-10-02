@@ -2,6 +2,8 @@ description "goojust, the OS TUI over the system justfile, with the fastfetch it
 
 supports "fedora"
 
+network "scripts"
+
 requires "just"
 
 provides "goojust"

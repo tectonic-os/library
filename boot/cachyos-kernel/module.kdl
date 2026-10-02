@@ -2,6 +2,8 @@ description "CachyOS kernel and companions, with Secure Boot module signing"
 
 supports "fedora"
 
+network "scripts"
+
 provides "kernel-devel"
 provides "kernel-package" file="/usr/lib/kernel-build/kernel-package"
 

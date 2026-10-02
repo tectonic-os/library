@@ -1,9 +1,10 @@
 source /ctx/lib/dkms-helpers.sh
+source /ctx/lib/fetch-helpers.sh
 kernel_devel_install "${DKMS_BUILD_DEPS[@]}"
 
-git clone --quiet --depth 1 --recurse-submodules --shallow-submodules \
-    --branch "$ASSET_LOOKING_GLASS_VERSION" \
-    "$ASSET_LOOKING_GLASS_URL" /tmp/looking-glass
+# The release archive carries the submodules, and a tag clone carries no hash.
+fetch_extract "$ASSET_LOOKING_GLASS_URL" "$ASSET_LOOKING_GLASS_SHA256" \
+    /tmp/looking-glass --strip-components=1
 
 KVMFR_VERSION="$(dkms_conf_version /tmp/looking-glass/module)"
 

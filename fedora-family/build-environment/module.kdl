@@ -2,6 +2,8 @@ description "dnf as the build environment every Fedora-family layer installs thr
 
 supports "fedora" "rhel"
 
+network "scripts"
+
 provides "build-environment"
 
 helpers "lib/family.sh"

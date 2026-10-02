@@ -2,6 +2,8 @@ description "runs SSG's own remediation for the profile the image conforms to, l
 
 supports "fedora" "rhel"
 
+network "scripts"
+
 // The capability is how `tect check` tells an image that declares `conforms`
 // and installs nothing to act on it. Nothing requires it: an image measured
 // without being remediated is a real thing to want.

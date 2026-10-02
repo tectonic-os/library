@@ -108,10 +108,13 @@ jobs:
       - name: Install shfmt
         env:
           SHFMT_VERSION: "3.13.1"
+          SHFMT_SHA256: fb096c5d1ac6beabbdbaa2874d025badb03ee07929f0c9ff67563ce8c75398b1
         run: |
-          sudo curl -fsSL -o /usr/local/bin/shfmt \
+          set -euo pipefail
+          curl -fsSLo /tmp/shfmt \
             "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/shfmt_v${SHFMT_VERSION}_linux_amd64"
-          sudo chmod +x /usr/local/bin/shfmt
+          echo "${SHFMT_SHA256}  /tmp/shfmt" | sha256sum -c -
+          sudo install -m 0755 /tmp/shfmt /usr/local/bin/shfmt
 
       - name: Lint
         run: |
@@ -144,6 +147,41 @@ jobs:
 
       - name: Lint Python
         run: ruff check
+
+      # A fork's pull request runs its module scripts in these workflows. So a
+      # workflow a pull request starts names no secret and grants no write.
+      # No workflow runs on `pull_request_target`, `workflow_run` or
+      # `issue_comment`, which run with the base token on a fork's behalf.
+      - name: Check that a pull request runs with no secret and a read-only token
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          # The bracketed patterns keep this step from matching its own text,
+          # and -H keeps the file name the comment filter reads.
+          all=(.github/workflows/*.yml .github/workflows/*.yaml)
+          mapfile -t started < <(grep -l 'pull_request' "${all[@]}")
+          # A grep that finds nothing exits 1, and finding nothing is the pass.
+          found="$({
+            grep -HnE 'pull_request[_]target|workflow[_]run|issue[_]comment' "${all[@]}" || true
+            grep -HnE '\bsecret[s]\b|:[[:space:]]*["'"'"']?write' "${started[@]}" || true
+          } | grep -vE '^[^:]+:[0-9]+:[[:space:]]*#' || true)"
+          if [ -n "$found" ]; then
+            printf '%s\n' "$found"
+            echo "::error::a workflow gives a pull request a secret, a write or the base token"
+            exit 1
+          fi
+
+      - name: Check that every file states its licence
+        env:
+          # fsfe/reuse 6.2.0
+          REUSE_IMAGE: docker.io/fsfe/reuse@sha256:85462a75c0f8efda09ddd190b92816b70e7662577c8427429e11e1b9f25a992e
+        run: docker run --rm -v "${PWD}:/data:ro" "$REUSE_IMAGE" lint
+
+      - name: Check that every asset pin is hashed
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s .github
+          find . -path ./.git -prune -o -name module.kdl -print0 | xargs -0 python3 .github/hashed.py
 
   # Deliberately not an `image` in the matrix below: it shares none of that
   # job's steps — no tool, no scaffold, no import, no build — so threading it
@@ -254,10 +292,13 @@ jobs:
       - name: Install shfmt
         env:
           SHFMT_VERSION: "3.13.1"
+          SHFMT_SHA256: fb096c5d1ac6beabbdbaa2874d025badb03ee07929f0c9ff67563ce8c75398b1
         run: |
-          sudo curl -fsSL -o /usr/local/bin/shfmt \
+          set -euo pipefail
+          curl -fsSLo /tmp/shfmt \
             "https://github.com/mvdan/sh/releases/download/v${SHFMT_VERSION}/shfmt_v${SHFMT_VERSION}_linux_amd64"
-          sudo chmod +x /usr/local/bin/shfmt
+          echo "${SHFMT_SHA256}  /tmp/shfmt" | sha256sum -c -
+          sudo install -m 0755 /tmp/shfmt /usr/local/bin/shfmt
 
       - name: Maximize build space
         run: |
@@ -397,6 +438,13 @@ jobs:
           claiming="$(grep -rlE '^[[:space:]]*satisfies' --include=module.kdl . \
             | sed 's|^\./||;s|/module\.kdl$||' | sort)"
           stray="$(comm -23 <(printf '%s\n' "$claiming") <(sort "$NAMES") || true)"
+          # The leg imports only what supports rhel, so a claiming module
+          # without it is listed and never measured.
+          for name in $claiming; do
+            if ! grep -qE '^supports .*"rhel"' "${name}/module.kdl"; then
+              stray="${stray:+${stray}$'\n'}${name}"
+            fi
+          done
           if [ -n "$stray" ]; then
             printf '%s\n' "$stray"
             echo '::error::a module declares `satisfies` and no leg measures it'
@@ -412,6 +460,8 @@ jobs:
           "$TECT_BIN" create repo "$IMAGE" --root "$ROOT" --no-tui \
             --owner tectonic-os --host github.com \
             --image "$IMAGE" --base "$BASE"
+          # The collection holds every module to the network it declares.
+          printf 'security-policy {\n    network "strict"\n}\n' >> "${ROOT}/repo.kdl"
           alts=("${NAMES}".[0-9]*)
           for alt in "${alts[@]}"; do
             "$TECT_BIN" create image "${IMAGE}-${alt##*.}" --root "$ROOT" --no-tui \
@@ -522,7 +572,7 @@ jobs:
 
       - name: Run lint
         run: |
-          "${ROOT}/scripts/lint.sh"
+          "${ROOT}/generated/scripts/lint.sh"
 
       - name: Run the tests the collection ships
         env:
@@ -663,7 +713,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends qemu-system-x86 ovmf
           # qemu runs as the runner user, which is in no group that owns it
           sudo chmod 666 /dev/kvm
-          "${ROOT}/scripts/smoke.sh" "${IMAGE}:latest" "${RUNNER_TEMP}/vm"
+          "${ROOT}/generated/scripts/smoke.sh" "${IMAGE}:latest" "${RUNNER_TEMP}/vm"
 
       # The content is the image's own, the revision the build remediated
       # with, installed onto the machine under `bootc usr-overlay`, which lasts

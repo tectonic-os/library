@@ -2,6 +2,8 @@ description "Looking Glass: the kvmfr DKMS kernel module and the client, for fra
 
 supports "fedora"
 
+network "scripts"
+
 requires "kernel-devel"
 requires "display-manager"
 requires "secureboot-key" "kernel-devel-helpers"
@@ -15,6 +17,7 @@ asset "looking-glass" {
     pin {
         renovate datasource="github-releases" depName="gnif/LookingGlass"
         version "B7"
-        url "https://github.com/gnif/LookingGlass.git"
+        url "https://looking-glass.io/artifact/{version}/source"
+        sha256 "09e506660ccc1b9691d06caa70179b52ffb4393299895cff3c2f0e74fcd69985"
     }
 }

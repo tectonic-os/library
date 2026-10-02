@@ -2,6 +2,8 @@ description "Full media codec set from negativo17, replacing the base image's st
 
 supports "fedora"
 
+network "scripts"
+
 requires "build-environment"
 
 family "fedora" {

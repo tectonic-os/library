@@ -2,6 +2,8 @@ description "tect itself, so a booted image answers for its own build with no re
 
 supports "fedora"
 
+network "scripts"
+
 provides "tect"
 provides "tect-assets" file="/usr/share/tectonic/assets"
 

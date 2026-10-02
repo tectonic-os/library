@@ -2,6 +2,8 @@ description "Xbox controller support: the xone driver, built and signed for the 
 
 supports "fedora"
 
+network "scripts"
+
 requires "kernel-devel"
 requires "secureboot-key" "kernel-devel-helpers"
 

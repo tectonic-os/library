@@ -2,6 +2,8 @@ description "Everything a deb-family container image is missing before it is a b
 
 supports "debian" "ubuntu"
 
+network "scripts"
+
 provides "bootc-base"
 
 provides "bootc" "bootupctl"

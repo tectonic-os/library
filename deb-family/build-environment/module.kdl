@@ -2,6 +2,8 @@ description "apt as the build environment every deb-family layer installs throug
 
 supports "debian" "ubuntu"
 
+network "scripts"
+
 provides "build-environment"
 
 helpers "lib/family.sh"

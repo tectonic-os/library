@@ -461,7 +461,7 @@ jobs:
             --owner tectonic-os --host github.com \
             --image "$IMAGE" --base "$BASE"
           # The collection holds every module to the network it declares.
-          echo 'network "strict"' >> "${ROOT}/repo.kdl"
+          printf 'security-policy {\n    network "strict"\n}\n' >> "${ROOT}/repo.kdl"
           alts=("${NAMES}".[0-9]*)
           for alt in "${alts[@]}"; do
             "$TECT_BIN" create image "${IMAGE}-${alt##*.}" --root "$ROOT" --no-tui \

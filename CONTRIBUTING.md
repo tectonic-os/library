@@ -42,9 +42,9 @@ on every path.
    CentOS Stream 10, scans the booted image, and fails when a claimed rule
    does not pass.
 6. **It reaches the network only where it declares it.** The collection
-   builds under `network "strict"`. A package step, which installs what
-   `packages`, `package-groups`, `copr` and a `repo` file declare, keeps the
-   network. A module whose `module.sh` or `finalize.sh` fetches an asset or
+   builds under `security-policy { network "strict" }`. A package step,
+   which installs what `packages`, `package-groups`, `copr` and a `repo` file
+   declare, keeps the network. A module whose `module.sh` or `finalize.sh` fetches an asset or
    installs through a package manager declares `network "scripts"`. A
    removal works offline and needs no declaration. Every other script step
    runs with no network. `tect check` names most modules that need the

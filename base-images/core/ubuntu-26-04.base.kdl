@@ -1,0 +1,16 @@
+// Ubuntu. It clears the gates that chose forky over trixie and one forky
+// cannot: `VERSION_ID` is present, which `bootc-image-builder` refuses to write
+// a manifest without. An LTS, and its package database is real.
+//
+// `ubuntu:*` ships `/etc/dpkg/dpkg.cfg.d/excludes`, which path-excludes man
+// pages, most of `/usr/share/doc` and the locale catalogues from every package
+// any derived image unpacks. `deb-bootc-base` removes it and reinstalls every
+// recorded package, since deleting the file restores nothing already stripped.
+base {
+    image "docker.io/library/ubuntu:26.04"
+    about "Ubuntu 26.04 LTS, which a module set has to turn into a bootc image"
+    family "ubuntu"
+    requires "bootc-base"
+    signed #false
+    bootloader "grub2" "systemd"
+}

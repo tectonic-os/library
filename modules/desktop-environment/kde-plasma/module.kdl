@@ -2,7 +2,7 @@ description "KDE Plasma desktop and the application set it ships with"
 
 supports "fedora" "debian" "ubuntu"
 
-provides "plasma-desktop" "display-manager"
+provides "plasma-desktop" "display-manager" "graphical-session" "wayland"
 
 requires "build-environment"
 

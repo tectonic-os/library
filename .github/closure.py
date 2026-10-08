@@ -4,7 +4,7 @@
 A leg that imports a subset of the collection cannot import a diff: a module
 whose `requires` nothing in the image provides is an unmet-requires error, so
 the set has to be closed over `requires` against the providers this family
-actually has; a key provides `<kind>-key`. Run from the collection root.
+actually has; a key provides `<kind>-key`. Run from the library root.
 
     closure.py <family> <base> <name>...
     closure.py --split <family> <base> <name>...
@@ -30,6 +30,7 @@ import re
 import sys
 from pathlib import Path
 
+MODULES = Path("modules")
 DECL = re.compile(r'^\s*(provides|requires)\s')
 # A property's value, `file="/usr/libexec/x"`, is not a name.
 QUOTED = re.compile(r'(?<!=)"([^"]*)"')
@@ -113,8 +114,8 @@ def main(argv):
         sys.exit(f"closure.py: no catalog at {catalog}; set TECT_ASSETS")
 
     modules = {}
-    for manifest in sorted(Path(".").rglob("module.kdl")):
-        name = manifest.parent.as_posix()
+    for manifest in sorted(MODULES.rglob("module.kdl")):
+        name = manifest.parent.relative_to(MODULES).as_posix()
         if any(part.startswith(".") for part in manifest.parts[:-1]):
             continue
         modules[name] = read(manifest)

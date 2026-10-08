@@ -1,0 +1,18 @@
+// CentOS Stream 10, the EL base. `family "rhel"` is EL's archive: it installs
+// like Fedora and its package names differ, as Debian's and Ubuntu's do. Its
+// kernel carries no btrfs.
+//
+// The content is the reason to build on it. `ssg-cs10-ds.xml` carries 18
+// profiles to Fedora's 8, including `stig` at 509 rules and `cis_server_l1` at
+// 323, and it is authored for the OS being measured. Measured 2026-09-09
+// against the image: every path below is present and bootc is 1.16.6.
+base {
+    image "quay.io/centos-bootc/centos-bootc:stream10"
+    about "CentOS Stream 10, the EL base a stated claim can be measured against"
+    family "rhel"
+    provides "rechunking" "initramfs-generation" "selinux-policy" "ssh" "bootc" "bootupctl" \
+        "podman" "crun"
+    scap-content "ssg-cs10-ds.xml"
+    signed #true
+    bootloader "grub2"
+}

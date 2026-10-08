@@ -2,7 +2,7 @@ description "GNOME desktop and the application set it ships with"
 
 supports "fedora" "rhel" "debian" "ubuntu"
 
-provides "gnome-desktop" "display-manager"
+provides "gnome-desktop" "display-manager" "graphical-session" "wayland"
 
 requires "build-environment"
 

@@ -1,0 +1,22 @@
+// RHEL 10, the supported EL base, and the only row here behind a login:
+// `podman login registry.redhat.io` with a Red Hat account, individual
+// subscriptions included. Measured 2026-09-09 against the image: RHEL 10.2,
+// bootc 1.16.4, and every path below present.
+//
+// `scap-security-guide` is not in the container's repos without entitlement,
+// so a build running the remediation step needs the host's entitlement
+// certificates. CentOS Stream 10 carries the same content unentitled and is
+// the row to develop against.
+base {
+    image "registry.redhat.io/rhel10/rhel-bootc:latest"
+    about "RHEL 10, the supported EL base, behind a Red Hat login"
+    family "rhel"
+    provides "rechunking" "initramfs-generation" "selinux-policy" "ssh" "bootc" "bootupctl" \
+        "podman" "crun"
+    scap-content "ssg-rhel10-ds.xml"
+    // Unmeasured: `registry.redhat.io` answers no signature read without a
+    // login. `#false` is the under-claim, and a line `base-sig-probe` can
+    // correct where a missing one is not.
+    signed #false
+    bootloader "grub2"
+}

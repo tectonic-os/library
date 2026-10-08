@@ -39,10 +39,12 @@ on:
 #               generated but never built. A diff is not importable on its own:
 #               a module whose requirement nothing in the image provides is an
 #               unmet-requires error, so the closure is walked from the
-#               providers rather than filtered from the diff. One per family,
-#               because a widened module's `requires` and `after` can be
-#               satisfiable on one family and dangling on another, and
-#               building nothing makes three of them cheap.
+#               providers rather than filtered from the diff, and its
+#               alternatives are split into separate images as the collection
+#               leg splits them. One per family, because a widened module's
+#               `requires` and `after` can be satisfiable on one family and
+#               dangling on another, and building nothing makes three of them
+#               cheap.
 #   packages    every `packages` batch a family declares, resolved by apt in a
 #               container of that family and nothing else. It builds no image,
 #               so it costs seconds, and it fails on the one defect a widened
@@ -411,6 +413,10 @@ jobs:
               from="${FROM:-$(git rev-parse -q --verify HEAD^ || true)}"
               : > "$NAMES"
               if [ -n "$from" ]; then
+                # A diff that touches two providers of one capability, or the
+                # whole collection at once, is closed and then split the way the
+                # collection leg splits; one image would enable both providers
+                # and `generate` would refuse it.
                 git diff --name-only "$from" HEAD | while read -r file; do
                   dir="$(dirname "$file")"
                   while [ "$dir" != "." ]; do
@@ -421,7 +427,9 @@ jobs:
                     dir="$(dirname "$dir")"
                   done
                 done | sort -u \
-                  | xargs python3 .github/closure.py "$FAMILY" "$BASE" > "$NAMES"
+                  | xargs python3 .github/closure.py "$FAMILY" "$BASE" \
+                  | xargs python3 .github/closure.py --split "$FAMILY" "$BASE" \
+                  | awk -v n="$NAMES" '{ print $2 > ($1 == 0 ? n : n "." $1) }'
               fi
               ;;
           esac

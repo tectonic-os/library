@@ -4,7 +4,7 @@
 Read by the `packages` job, which dry-runs each line in a container of that
 family. A name that does not resolve is then reported against the module that
 wrote it rather than against a union of every list, which is the whole reason
-the lines are kept apart. Run from the collection root.
+the lines are kept apart. Run from the library root.
 
     packages.py <family>
     packages.py <family> --repos
@@ -24,6 +24,7 @@ import re
 import sys
 from pathlib import Path
 
+MODULES = Path("modules")
 QUOTED = re.compile(r'"([^"]*)"')
 # `enablerepo="tailscale-stable"` is a property of the batch and not a package
 # in it, so its value is dropped before the names are read.
@@ -106,7 +107,7 @@ def main(argv):
     if len(argv) not in (2, 3) or (len(argv) == 3 and argv[2] != "--repos"):
         sys.exit(__doc__)
     family, repos = argv[1], len(argv) == 3
-    for manifest in sorted(Path(".").rglob("module.kdl")):
+    for manifest in sorted(MODULES.rglob("module.kdl")):
         if any(part.startswith(".") for part in manifest.parts[:-1]):
             continue
         text = manifest.read_text()
@@ -119,7 +120,7 @@ def main(argv):
             continue
         names = lists(text, family)
         if names:
-            print(manifest.parent.as_posix(), *names)
+            print(manifest.parent.relative_to(MODULES).as_posix(), *names)
 
 
 if __name__ == "__main__":

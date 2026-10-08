@@ -5,7 +5,7 @@ supports "fedora" "debian" "ubuntu"
 // Extras only: the runtime itself is not this module's, on any family.
 // `quay.io/fedora/fedora-bootc:44` ships `podman` and `crun` in the base —
 // measured 2026-09-05 — and a deb base ships neither, which is what
-// `deb-family/container-runtime` is for. So this module is what goes on top of
+// `deb/container-runtime` is for. So this module is what goes on top of
 // a runtime that is always already there, and never the runtime.
 //
 // Neither `podman-machine` nor `podman-tui` exists on either deb family —
@@ -13,7 +13,7 @@ supports "fedora" "debian" "ubuntu"
 // rootless networking backends.
 //
 // `passt` and `slirp4netns` are here for a reason `apt-cache depends podman`
-// gives: deb podman only *recommends* both, and `deb-family/build-environment`
+// gives: deb podman only *recommends* both, and `deb/build-environment`
 // installs with
 // `--no-install-recommends`, so neither arrives on its own. Without one of
 // them a rootless container has no network at all.

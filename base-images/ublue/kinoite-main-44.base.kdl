@@ -1,0 +1,9 @@
+base {
+    image "ghcr.io/ublue-os/kinoite-main:44"
+    about "Fedora Kinoite with the ublue additions, what bazzite builds on"
+    family "fedora"
+    provides "rechunking" "flatpak"
+    signed #true
+    scap-content "ssg-fedora-ds.xml"
+    bootloader "grub2"
+}

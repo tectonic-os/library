@@ -1,0 +1,15 @@
+// Debian, which is not a bootc image: it carries no kernel, no dracut, no
+// bootc and no AppArmor userspace, so a module set has to make it bootable
+// before anything else in an image on it means anything.
+//
+// forky, because `--composefs-backend` is what reaches a bootloader on a base
+// with no `bootupd`, Debian packages none, and every bootc carrying that flag
+// needs libostree >= 2025.3. trixie ships 2025.2; forky carries 2026.4.
+base {
+    image "docker.io/library/debian:forky"
+    about "Debian 14, which a module set has to turn into a bootc image"
+    family "debian"
+    requires "bootc-base"
+    signed #false
+    bootloader "grub2" "systemd"
+}

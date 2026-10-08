@@ -9,8 +9,8 @@ on:
     branches:
       - main
     paths:
-      - deb-family/bootc-base/module.kdl
-      - deb-family/bootc-base/build-tools.sh
+      - modules/deb/bootc-base/module.kdl
+      - modules/deb/bootc-base/build-tools.sh
       - .github/pins.py
       - .github/workflows/tools.yml
   workflow_dispatch:
@@ -38,7 +38,7 @@ jobs:
     env:
       FAMILY: ${{ matrix.family }}
       BASE: ${{ matrix.base }}
-      MODULE: deb-family/bootc-base
+      MODULE: modules/deb/bootc-base
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
@@ -59,7 +59,7 @@ jobs:
           tar -xzf "$dir"/*.tar.gz -C "$dir"
           mkdir -p "${RUNNER_TEMP}/ctx/lib"
           cp "$dir"/assets/lib/*.sh "${RUNNER_TEMP}/ctx/lib/"
-          cp deb-family/build-environment/lib/family.sh "${RUNNER_TEMP}/ctx/lib/"
+          cp modules/deb/build-environment/lib/family.sh "${RUNNER_TEMP}/ctx/lib/"
 
       - name: Read the module's pins
         run: |
@@ -107,7 +107,7 @@ jobs:
             "$BASE" bash -euxo pipefail -c '
               # Maintainers reuse the module build environment and its archive policy.
               source /ctx/lib/family.sh
-              bash /src/deb-family/build-environment/module.sh
+              bash /src/modules/deb/build-environment/module.sh
               # Maintainers install compile inputs without adding image runtime packages.
               install_packages curl ca-certificates zstd
               DESTDIR=/stage bash "/src/${MODULE}/build-tools.sh"
@@ -131,7 +131,7 @@ jobs:
           # Maintainers accept the release-creation race because both jobs upload
           # their family tarball to the same tag.
           gh release create "$TAG" --title "$TAG" --notes \
-            "The bootc and bootupd trees \`deb-family/bootc-base\` installs, compiled from its pins." \
+            "The bootc and bootupd trees \`deb/bootc-base\` installs, compiled from its pins." \
             || true
           gh release upload "$TAG" "$TARBALL"
           echo "::notice::${MODULE}/module.kdl: bootc-tools-${FAMILY} is version \"${VERSION}\" sha256 \"$(sha256sum "$TARBALL" | cut -d' ' -f1)\""

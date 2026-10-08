@@ -18,7 +18,7 @@ printf 'Acquire::Retries "5";\nAcquire::http::Timeout "30";\n' > /etc/apt/apt.co
 # the other half, and every published Ubuntu bootc base skips it. It costs 27s
 # and 39 MB.
 #
-# Here rather than in `deb-family/bootc-base` because this is the module every deb
+# Here rather than in `deb/bootc-base` because this is the module every deb
 # build's closure puts first — it has to run before the first install of any
 # module, and `provides "build-environment"` is what guarantees that. `debian:*`
 # ships no such file and the guard is what makes this one module for both.

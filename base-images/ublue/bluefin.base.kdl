@@ -1,0 +1,9 @@
+base {
+    image "ghcr.io/ublue-os/bluefin:stable"
+    about "GNOME developer workstation over silverblue-main"
+    family "fedora"
+    provides "rechunking" "flatpak"
+    signed #true
+    scap-content "ssg-fedora-ds.xml"
+    bootloader "grub2"
+}

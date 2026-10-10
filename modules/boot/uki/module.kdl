@@ -1,3 +1,5 @@
+schema-version 1
+
 description "Experimental owner-signed UKI boot chain with systemd-boot"
 
 supports "fedora"

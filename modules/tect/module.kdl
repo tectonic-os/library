@@ -1,3 +1,5 @@
+schema-version 1
+
 description "tect itself, so a booted image answers for its own build with no repository; pinned separately from the tect-version that built it"
 
 supports "fedora"

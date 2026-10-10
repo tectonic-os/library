@@ -1,3 +1,5 @@
+schema-version 1
+
 description "VSCodium, the telemetry-free VS Code build"
 
 supports "fedora" "debian" "ubuntu"

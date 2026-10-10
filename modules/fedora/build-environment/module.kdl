@@ -1,3 +1,5 @@
+schema-version 1
+
 description "dnf as the build environment every Fedora-family layer installs through, and the root filesystem work that closes it"
 
 supports "fedora" "rhel"

@@ -1,3 +1,5 @@
+schema-version 1
+
 description "Debian's non-free-firmware component, which the base image does not enable"
 
 supports "debian"

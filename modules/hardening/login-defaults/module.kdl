@@ -1,3 +1,5 @@
+schema-version 1
+
 description "Login defaults: password ageing, length, failure delay and umask"
 
 supports "fedora" "rhel" "debian" "ubuntu"

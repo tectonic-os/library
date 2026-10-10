@@ -1,3 +1,5 @@
+schema-version 1
+
 description "GRUB dual boot discovery, so another installed OS shows up in the boot menu"
 
 supports "fedora"

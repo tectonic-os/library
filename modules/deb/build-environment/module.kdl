@@ -1,3 +1,5 @@
+schema-version 1
+
 description "apt as the build environment every deb-family layer installs through, and the archive repairs a deb container image needs before it can"
 
 supports "debian" "ubuntu"

@@ -1,3 +1,5 @@
+schema-version 1
+
 description "System maintenance recipes, collected into the system justfile"
 
 supports "fedora" "debian" "ubuntu"

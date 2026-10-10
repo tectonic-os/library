@@ -1,3 +1,5 @@
+schema-version 1
+
 description "Git and its companions: git-delta, git-lfs, and the direnv that rides along"
 
 supports "fedora" "debian" "ubuntu"

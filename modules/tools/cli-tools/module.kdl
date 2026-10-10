@@ -1,3 +1,5 @@
+schema-version 1
+
 description "Traditional CLI utilities: tmux, htop, rsync, vim and friends"
 
 supports "fedora" "debian" "ubuntu"

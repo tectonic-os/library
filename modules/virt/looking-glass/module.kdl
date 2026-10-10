@@ -1,3 +1,5 @@
+schema-version 1
+
 description "Looking Glass: the kvmfr DKMS kernel module and the client, for frame relay from a passed-through GPU"
 
 supports "fedora"

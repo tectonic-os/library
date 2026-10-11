@@ -1,3 +1,5 @@
+schema-version 1
+
 description "Trivalent, secureblue's hardened Chromium fork"
 
 supports "fedora"

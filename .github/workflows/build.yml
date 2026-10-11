@@ -349,11 +349,6 @@ jobs:
           (cd "$dir" && printf '%s  %s\n' "$(cat ./*.sha256)" ./*.tar.gz \
             | sha256sum --check --status)
           tar -xzf "$dir"/*.tar.gz -C "$dir"
-          # The scaffold is data, so pointing its sources block at this
-          # checkout is what makes the scaffolded repository import the tree
-          # under test rather than the published collection.
-          printf 'sources {\n    tectonic-os "%s"\n}\n' "$GITHUB_WORKSPACE/modules" \
-            > "${dir}/assets/repo.sources.kdl"
           {
             echo "ROOT=${RUNNER_TEMP}/collection"
             echo "NAMES=${RUNNER_TEMP}/names"
@@ -468,8 +463,50 @@ jobs:
           set -euo pipefail
           shopt -s nullglob
           "$TECT_BIN" create repo "$IMAGE" --root "$ROOT" --no-tui \
-            --owner tectonic-os --host github.com \
-            --image "$IMAGE" --base "$BASE"
+            --owner tectonic-os --host github.com
+          # Import this checkout through the same typed declarations a user
+          # writes, rather than fetching the published collection.
+          awk -v root="$GITHUB_WORKSPACE" '
+            $0 == "sources {" {
+              replaced++
+              print "sources {"
+              print "    modules \"tectonic-modules\" {"
+              print "        dir \"" root "/modules\""
+              print "    }"
+              print "    base-images \"core\" {"
+              print "        dir \"" root "/base-images/core\""
+              print "    }"
+              print "    capabilities \"core\" {"
+              print "        dir \"" root "/capabilities\""
+              print "    }"
+              print "}"
+              replacing = 1
+              next
+            }
+            replacing && $0 == "}" { replacing = 0; next }
+            !replacing
+            END { if (replacing || replaced != 1) exit 1 }
+          ' "${ROOT}/repo.kdl" > "${ROOT}/repo.kdl.new"
+          mv "${ROOT}/repo.kdl.new" "${ROOT}/repo.kdl"
+          for declaration in \
+            '    modules "tectonic-modules" {' \
+            '    base-images "core" {' \
+            '    capabilities "core" {' \
+            "        dir \"${GITHUB_WORKSPACE}/modules\"" \
+            "        dir \"${GITHUB_WORKSPACE}/base-images/core\"" \
+            "        dir \"${GITHUB_WORKSPACE}/capabilities\""; do
+            if [ "$(grep -Fxc "$declaration" "${ROOT}/repo.kdl" || true)" != 1 ]; then
+              echo "::error::repo.kdl does not carry exactly one ${declaration}"
+              exit 1
+            fi
+          done
+          if grep -qE '^[[:space:]]+(url|path) ' "${ROOT}/repo.kdl"; then
+            echo '::error::repo.kdl still carries a remote source'
+            exit 1
+          fi
+          "$TECT_BIN" create image "$IMAGE" --root "$ROOT" --no-tui \
+            --owner tectonic-os --base "$BASE"
+          "$TECT_BIN" fetch modules --root "$ROOT" --no-tui
           # The collection holds every module to the network it declares.
           printf 'security-policy {\n    network "strict"\n}\n' >> "${ROOT}/repo.kdl"
           alts=("${NAMES}".[0-9]*)
@@ -500,39 +537,6 @@ jobs:
               exit 1
             fi
           fi
-          # Both bootc-base legs build on a plain deb-family container image,
-          # which is not a bootc image: `family` and `requires "bootc-base"`
-          # are what the catalog writes out of that row, and the
-          # `deb` set is what satisfies the second.
-          #
-          # This fixup exists because the leg runs the *released* tool, and the
-          # Ubuntu row lands in `assets/bases.kdl` one release after this module
-          # support. An uncatalogued base is scaffolded `family "fedora"`, which
-          # would select no `packages` batch at all and retain Fedora's
-          # `build-disk` workflow. The assertions below are the point and stay.
-          case "$FAMILY" in
-          debian|ubuntu)
-            for image in "${ROOT}"/*.image.kdl; do
-              sed -i "s|^        family \"fedora\"$|        family \"${FAMILY}\"|" "$image"
-              grep -q '^        requires "bootc-base"$' "$image" \
-                || sed -i "s|^        family \"${FAMILY}\"$|        family \"${FAMILY}\"\n        requires \"bootc-base\"|" "$image"
-              for want in "        family \"${FAMILY}\"" '        requires "bootc-base"'; do
-                [ "$(grep -cx "$want" "$image")" = 1 ] || {
-                  echo "::error::${image} does not carry exactly one \`${want# *}\`"
-                  exit 1
-                }
-              done
-            done
-            if [ "$FAMILY" = ubuntu ]; then
-              repo="${ROOT}/repo.kdl"
-              sed -i '/^    build-disk$/d' "$repo"
-              [ "$(grep -cx '    build-disk' "$repo" || true)" = 0 ] || {
-                echo "::error::${repo} still declares build-disk"
-                exit 1
-              }
-            fi
-            ;;
-          esac
           # A key is the repository's, so a module in two images makes one.
           declare -A keyed=()
           import_into() {
@@ -549,7 +553,7 @@ jobs:
             if grep -q "module \"${name}\"" "${ROOT}/${image}.image.kdl"; then
               continue
             fi
-            "$TECT_BIN" import module "tectonic-os/${name}" --root "$ROOT" \
+            "$TECT_BIN" import module "tectonic-modules/${name}" --root "$ROOT" \
               --image "$image" --no-tui
             [ -z "${keyed[$name]:-}" ] || continue
             keyed[$name]=1
@@ -773,7 +777,7 @@ jobs:
           # The scaffolded repository does not enforce, so `tect scap` reports
           # a bad claim and still exits 0. Every claim row has to be green here
           # or a red collection is the only thing that catches it.
-          rows="$(printf '%s\n' "$report" | grep '^| tectonic-os/' || true)"
+          rows="$(printf '%s\n' "$report" | grep '^| tectonic-modules/' || true)"
           if [ -z "$rows" ]; then
             echo '::error::the report declared no claim at all'; exit 1
           fi

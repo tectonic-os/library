@@ -1,3 +1,5 @@
+schema-version 1
+
 description "libvirt, QEMU/KVM and virt-manager, with the group and relabel workarounds they need"
 
 supports "fedora" "debian" "ubuntu"

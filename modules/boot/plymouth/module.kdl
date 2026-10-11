@@ -1,3 +1,5 @@
+schema-version 1
+
 description "Plymouth boot splash on the spinner theme"
 
 supports "fedora" "debian" "ubuntu"

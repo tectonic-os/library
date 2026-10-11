@@ -1,3 +1,5 @@
+schema-version 1
+
 description "Podman extras: compose and the TUI, on top of the runtime every bootc image already has"
 
 supports "fedora" "debian" "ubuntu"

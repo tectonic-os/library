@@ -1,3 +1,5 @@
+schema-version 1
+
 description "su is for wheel: pam_wheel refuses everyone else"
 
 supports "fedora" "rhel" "debian" "ubuntu"

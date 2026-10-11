@@ -1,3 +1,5 @@
+schema-version 1
+
 description "auditd, with the audit rules and auditd.conf settings of the DISA STIG"
 
 supports "fedora" "rhel" "debian" "ubuntu"

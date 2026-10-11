@@ -1,3 +1,5 @@
+schema-version 1
+
 description "Everything a Rocky container image is missing before it is a bootc image: systemd, a kernel, dracut, ostree, bootc, bootupd, an initramfs that carries them, and an ostree-shaped root filesystem"
 
 supports "rhel"

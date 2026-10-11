@@ -1,3 +1,5 @@
+schema-version 1
+
 description "sudo policy hardening: own pty, own logfile, short credential cache"
 
 supports "fedora" "rhel" "debian" "ubuntu"

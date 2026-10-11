@@ -1,3 +1,5 @@
+schema-version 1
+
 description "Hardware diagnostics and tuning: lm_sensors, dmidecode, intel-lpmd, alsa-ucm"
 
 supports "fedora" "debian" "ubuntu"

@@ -1,3 +1,5 @@
+schema-version 1
+
 description "Network tooling: avahi, wireguard-tools, tcpdump, traceroute and friends"
 
 supports "fedora" "debian" "ubuntu"

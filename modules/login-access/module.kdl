@@ -1,3 +1,5 @@
+schema-version 1
+
 description "The two ways into a machine, neither of which a base should decide for one: the ssh daemon enabled, and a console account a hypervisor can create with systemd credentials"
 
 supports "fedora" "debian" "ubuntu"

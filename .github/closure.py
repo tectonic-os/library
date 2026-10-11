@@ -18,41 +18,46 @@ a MAC policy, `rechunking` and `initramfs-generation` and `tect` is the one that
 knows which. Requirements come out before the module that needs them.
 
 What the base's catalog row requires is closed over too, since `create image`
-seeds it into every image on that base. It is read from `$TECT_ASSETS/bases.kdl`,
-the catalog the leg's own tool carries, because it is a fact about the row and
-not the family: Rocky requires `bootc-base` and the other three EL rows do not.
-Measured 2026-09-05: a `changed` leg naming one unrelated module scaffolded an
-image whose seeded `bootc-base` had nothing providing `container-runtime`.
+seeds it into every image on that base. The row is read from this checkout's
+`base-images/<library>/*.base.kdl`, because its requirements are facts about the
+base rather than the family.
 """
 
-import os
 import re
 import sys
 from pathlib import Path
 
 MODULES = Path("modules")
+BASE_IMAGES = Path("base-images")
 DECL = re.compile(r'^\s*(provides|requires)\s')
 # A property's value, `file="/usr/libexec/x"`, is not a name.
 QUOTED = re.compile(r'(?<!=)"([^"]*)"')
-ROW = re.compile(r'^base "([^"]+)"')
+IMAGE = re.compile(r'^\s*image\s+"([^"]+)"')
 
 
-def row_requires(catalog, image):
-    """What the row for `image` requires. A digest pins a catalogued tag, and
-    a base with no row fails: seeding nothing is the 2026-09-05 defect again."""
-    image, row, found, out = image.split("@")[0], None, False, []
-    for line in catalog.read_text().splitlines():
-        match = ROW.match(line)
-        if match:
-            row = match.group(1)
-            found = found or row == image
-        elif line.startswith("}"):
-            row = None
-        elif row == image and line.lstrip().startswith("requires "):
-            out += QUOTED.findall(line)
-    if not found:
-        sys.exit(f"closure.py: {catalog} has no row for {image}")
-    return out
+def row_requires(catalogs, image):
+    """Return the requirements from the one base file matching `image`."""
+    wanted = image.split("@", 1)[0]
+    matches = []
+    for catalog in sorted(catalogs.glob("*/*.base.kdl")):
+        row, found, requires = None, False, []
+        for line in catalog.read_text().splitlines():
+            match = IMAGE.match(line)
+            if match:
+                row = match.group(1)
+                found = found or row == wanted
+            elif line.startswith("}"):
+                row = None
+            elif row == wanted and line.lstrip().startswith("requires "):
+                requires += QUOTED.findall(line)
+        if found:
+            matches.append((catalog, requires))
+    if not matches:
+        sys.exit(f"closure.py: no base file under {catalogs} describes {wanted}")
+    if len(matches) > 1:
+        paths = ", ".join(str(catalog) for catalog, _ in matches)
+        sys.exit(f"closure.py: {wanted} is described by more than one base file: {paths}")
+    return matches[0][1]
 
 
 def read(path):
@@ -109,9 +114,6 @@ def main(argv):
     if len(argv) < 3:
         sys.exit(__doc__)
     family, base, wanted = argv[1], argv[2], argv[3:]
-    catalog = Path(os.environ.get("TECT_ASSETS", "")) / "bases.kdl"
-    if not catalog.is_file():
-        sys.exit(f"closure.py: no catalog at {catalog}; set TECT_ASSETS")
 
     modules = {}
     for manifest in sorted(MODULES.rglob("module.kdl")):
@@ -120,7 +122,7 @@ def main(argv):
             continue
         modules[name] = read(manifest)
 
-    seeded_by_row = row_requires(catalog, base)
+    seeded_by_row = row_requires(BASE_IMAGES, base)
     if not splitting:
         for name in close(modules, family, seeded_by_row, wanted):
             print(name)

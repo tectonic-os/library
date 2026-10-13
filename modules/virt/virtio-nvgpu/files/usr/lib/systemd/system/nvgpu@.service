@@ -1,0 +1,37 @@
+[Unit]
+Description=virtio-nvgpu backend for %i
+Documentation=https://github.com/nestrilabs/virtio-nvgpu
+After=systemd-user-sessions.service
+# Nothing to serve until the host driver owns the card.
+ConditionPathExists=/dev/nvidiactl
+
+[Service]
+Type=simple
+User=nvgpu
+Group=nvgpu
+SupplementaryGroups=render
+# QEMU connects to the socket this creates from outside its own user, so
+# the mode comes from here rather than from the default umask.
+UMask=0000
+EnvironmentFile=-/usr/lib/nvgpu/backend.env
+EnvironmentFile=-/etc/nvgpu/backend.env
+ExecStart=/usr/libexec/nvgpu/vhost-user-nvgpu \
+    --socket /run/nvgpu/%i.sock \
+    --caps graphics,compute,video,utility \
+    --vram-limit-mib ${NVGPU_VRAM_LIMIT_MIB}
+# The libvirt hook owns this unit's lifetime, and a backend that died mid-VM
+# must not come back serving a VM it no longer knows.
+Restart=no
+NoNewPrivileges=true
+
+# The backend opens the card's device nodes, and systemd's automatic device
+# policy allows only what is listed here plus its own defaults.
+DeviceAllow=/dev/nvidiactl rw
+DeviceAllow=/dev/nvidia0 rw
+DeviceAllow=/dev/nvidia-uvm rw
+DeviceAllow=/dev/nvidia-uvm-tools rw
+DeviceAllow=/dev/nvidia-modeset rw
+DeviceAllow=char-drm rw
+
+[Install]
+WantedBy=multi-user.target

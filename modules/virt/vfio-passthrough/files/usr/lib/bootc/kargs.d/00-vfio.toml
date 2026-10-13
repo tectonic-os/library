@@ -1,1 +1,1 @@
-kargs = ["iommu=pt", "rd.driver.pre=vfio-pci"]
+kargs = ["iommu=pt"]

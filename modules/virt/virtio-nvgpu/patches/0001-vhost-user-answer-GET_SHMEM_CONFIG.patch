@@ -1,0 +1,50 @@
+# SPDX-FileCopyrightText: The virtio-nvgpu contributors
+# SPDX-FileCopyrightText: The tectonic-os contributors
+# SPDX-License-Identifier: Apache-2.0
+
+diff --git a/device/bin/vhost-user-nvgpu.rs b/device/bin/vhost-user-nvgpu.rs
+index 8a2ac3e..64d9b33 100644
+--- a/device/bin/vhost-user-nvgpu.rs
++++ b/device/bin/vhost-user-nvgpu.rs
+@@ -32,7 +32,8 @@ use device::virtio::{NUM_QUEUES, QUEUE_SIZE, VIRTIO_ID_GPU_NV, VirtioGpuNvConfig
+ use protocol::messages::{MsgHeader, MsgType};
+ use std::os::fd::{BorrowedFd, RawFd};
+ use vhost::vhost_user::message::{
+-    VhostUserMMap, VhostUserMMapFlags, VhostUserProtocolFeatures, VhostUserVirtioFeatures,
++    VhostUserMMap, VhostUserMMapFlags, VhostUserProtocolFeatures, VhostUserShMemConfig,
++    VhostUserVirtioFeatures,
+ };
+ use vhost::vhost_user::{Backend, VhostUserFrontendReqHandler};
+ use vhost_user_backend::{VhostUserBackendMut, VhostUserDaemon, VringRwLock, VringT};
+@@ -367,6 +368,12 @@ const EVENT_QUEUE: usize = 1;
+ const NV_SHM_ID: u8 = 1;
+ /// The UVM aperture, where semaphore pools are placed. See `device/src/nvidia/aperture.rs`.
+ const NV_SHM_ID_APERTURE: u8 = 2;
++/// The window takes its size from `ZoneConfig::default_1gib()`: one GiB of
++/// address space in a memfd, which holds no pages until the guest faults them
++/// in. A short region here is a guest mapping past the end of its own slot.
++const NV_WINDOW_LEN: u64 = 1 << 30;
++/// The aperture's size, `device/src/nvidia/aperture.rs::APERTURE_LEN`.
++const NV_APERTURE_LEN: u64 = 1 << 30;
+ 
+ struct NvGpuBackend {
+     nvidia: Arc<Mutex<NvidiaBackend>>,
+@@ -570,6 +577,18 @@ impl VhostUserBackendMut for NvGpuBackend {
+             | VhostUserProtocolFeatures::SHMEM
+     }
+ 
++    /// The two shared-memory regions the guest maps, by id: the window and the
++    /// UVM aperture. QEMU asks for these on attach and fails to realize the
++    /// device if the request errors, which the trait's default does. The
++    /// index is the id the guest looks up, so the entries are sparse.
++    fn get_shmem_config(&self) -> std::io::Result<VhostUserShMemConfig> {
++        let mut cfg = VhostUserShMemConfig::default();
++        cfg.nregions = NV_SHM_ID_APERTURE as u32 + 1;
++        cfg.memory_sizes[NV_SHM_ID as usize] = NV_WINDOW_LEN;
++        cfg.memory_sizes[NV_SHM_ID_APERTURE as usize] = NV_APERTURE_LEN;
++        Ok(cfg)
++    }
++
+     fn set_backend_req_fd(&mut self, backend: Backend) {
+         log::info!("window: request channel open; device memory is now mappable");
+         self.nvidia

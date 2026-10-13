@@ -1,0 +1,43 @@
+#!/bin/bash
+# libvirt hook: run a virtio-nvgpu backend for the VMs whose XML attaches
+# the device, and make the socket one QEMU may connect to.
+#
+# The backend must already be listening when QEMU opens its chardev, so it
+# is started in "prepare" and this hook waits for the socket before the VM
+# is let through. QEMU runs as svirt_t, which the targeted policy lets
+# connect to a socket it owns or one labelled for it. The service's socket
+# lands as var_run_t, because nothing under /run carries a socket label of
+# its own. chcon to svirt_socket_t is the fix, and it is the shape the
+# looking-glass relabel service uses. libvirt runs hooks as root.
+set -euo pipefail
+
+guest="$1"
+op="$2"
+
+case "$op" in
+    prepare | started)
+        # Only guests using the device get a backend; every other domain is
+        # none of this hook's business, and a domain whose XML libvirt cannot
+        # return is treated the same way.
+        virsh -c qemu:///system dumpxml "$guest" 2> /dev/null \
+            | grep -q "vhost-user-test-device" || exit 0
+
+        systemctl start "nvgpu@${guest}.service" || exit 1
+        sock="/run/nvgpu/${guest}.sock"
+        for _ in $(seq 1 100); do
+            [ -S "$sock" ] && break
+            sleep 0.1
+        done
+        if [ ! -S "$sock" ]; then
+            echo "nvgpu hook: ${sock} never appeared" >&2
+            exit 1
+        fi
+
+        chcon -t svirt_socket_t "$sock"
+        ;;
+    stopped | release)
+        # A domain that never started a backend has no unit to stop.
+        systemctl stop "nvgpu@${guest}.service" || true
+        ;;
+esac
+exit 0

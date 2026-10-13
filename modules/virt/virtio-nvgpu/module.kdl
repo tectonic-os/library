@@ -1,0 +1,30 @@
+schema-version 1
+
+description "NVIDIA GPU sharing across VMs: host driver, virtio-nvgpu backend and SHMEM-capable QEMU"
+
+supports "fedora"
+
+network "scripts"
+
+// QEMU carries the device the backend attaches to, so the module installs it
+// itself rather than inheriting it from virt/libvirt.
+packages "qemu-system-x86-core"
+
+requires "kernel-devel"
+requires "secureboot-key" "kernel-devel-helpers"
+requires "build-environment"
+
+arg "KERNEL"
+secret "mok_privkey"
+
+// The pin is a commit on the default branch, so a clone of that commit is its
+// own integrity. The patch in patches/ makes the backend answer QEMU's
+// GET_SHMEM_CONFIG, which the vhost-user-backend trait default refuses and
+// QEMU fails the device on; an upstream fix removes the patch.
+asset "virtio-nvgpu" {
+    pin {
+        renovate datasource="git-refs" depName="https://github.com/nestrilabs/virtio-nvgpu"
+        version "21a4f075d5c01c0865c809a8592e40b860435768"
+        url "https://github.com/nestrilabs/virtio-nvgpu.git"
+    }
+}

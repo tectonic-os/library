@@ -1,0 +1,21 @@
+REPO_ID="copr:copr.fedorainfracloud.org:group_virtmaint-sig:virt-preview"
+source /ctx/lib/family.sh
+
+# negativo17's multimedia repo carries the NVIDIA driver packages. media-codecs
+# adds the same repo too, so this only adds it when it is absent, and then
+# disabled, so this module opts in per install either way.
+if [ ! -f /etc/yum.repos.d/fedora-multimedia.repo ]; then
+    REPO_ID="fedora-multimedia"
+    add_disabled_repo https://negativo17.org/repos/fedora-multimedia.repo
+fi
+
+# virt-preview tracks newer upstream QEMU releases for the current Fedora,
+# which module.sh requires for the vhost-user shared-memory protocol.
+#
+# The COPR id never names its own .repo file, so this guard is the only
+# idempotency.
+FEDORA_VER="$(rpm -E %fedora)"
+if [ ! -f "/etc/yum.repos.d/virtmaint-sig-virt-preview-fedora-${FEDORA_VER}.repo" ]; then
+    REPO_ID="copr:copr.fedorainfracloud.org:group_virtmaint-sig:virt-preview"
+    add_disabled_repo "https://copr.fedoraproject.org/coprs/g/virtmaint-sig/virt-preview/repo/fedora-${FEDORA_VER}/virtmaint-sig-virt-preview-fedora-${FEDORA_VER}.repo"
+fi

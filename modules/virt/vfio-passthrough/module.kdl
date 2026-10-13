@@ -1,5 +1,5 @@
 schema-version 1
 
-description "VFIO GPU passthrough: kernel arguments, driver binding and a rebind service"
+description "VFIO GPU passthrough: the iommu=pt kernel argument, with the driver bound per VM through libvirt"
 
 supports "fedora"

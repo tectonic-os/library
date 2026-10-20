@@ -116,12 +116,15 @@ rm -f /etc/apt/apt.conf.d/docker-clean \
 # Image authors leave `/opt` to Tect's later finalizer because it would replace
 # a symlink created here.
 # shellcheck disable=SC2114
-rm -rf /boot /home /root /srv /mnt /usr/local
+rm -rf /boot /home /root /srv /mnt
 mkdir -p /boot /sysroot /var/home /var/srv /var/mnt /var/usrlocal /var/roothome
 chmod 0700 /var/roothome
 ln -sT var/home /home
 ln -sT var/roothome /root
 ln -sT var/srv /srv
 ln -sT var/mnt /mnt
-ln -sT ../var/usrlocal /usr/local
+# The modules wrote their /usr/local content before this hook runs.
+# Tect's later finalizer moves that content into /usr/lib/usrlocal.
+# It then puts the /usr/local.bak link in place as /usr/local.
+ln -sT ../var/usrlocal /usr/local.bak
 ln -sT sysroot/ostree /ostree

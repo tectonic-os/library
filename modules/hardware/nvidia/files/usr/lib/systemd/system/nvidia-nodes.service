@@ -1,0 +1,16 @@
+[Unit]
+Description=Create the /dev/nvidia* device nodes
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# The NVIDIA libraries create the /dev/nvidia* nodes on first open.
+# They run the setuid nvidia-modprobe to do that.
+# A container or a NoNewPrivileges service cannot run a setuid binary.
+# A service that opens the GPU at boot declares Wants= and After= this unit.
+# The unit then creates the nodes before that service starts.
+#
+# nvidia-modprobe carries the xserver_exec_t label.
+# SELinux denies init_t a direct execute of that label.
+# The script runs through /bin/sh to avoid the denial.
+ExecStart=/bin/sh /usr/libexec/nvidia-nodes

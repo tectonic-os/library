@@ -6,10 +6,7 @@ supports "fedora"
 
 network "scripts"
 
-provides "kernel-devel"
-provides "kernel-package" file="/usr/lib/kernel-build/kernel-package"
-
-provides "kernel-devel-helpers" file="/usr/libexec/kernel-devel-helpers.sh" build-only=#true
+provides "kernel" file="/usr/lib/kernel-build/kernel-package"
 
 key "secureboot" {
     generator "openssl" profile="module-signing" bits=4096

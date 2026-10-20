@@ -1,0 +1,31 @@
+schema-version 1
+
+description "nvidia driver, with the open kernel modules built for the image kernel"
+
+supports "fedora"
+
+network "scripts"
+
+requires "build-environment"
+requires "kernel-devel"
+after "secureboot-key"
+
+provides "nvidia-kmod" file="/usr/lib/systemd/system/nvidia-nodes.service"
+provides "nvidia-driver" file="/usr/bin/nvidia-smi"
+provides "nvidia-repo" file="/etc/pki/rpm-gpg/RPM-GPG-KEY-nvidia-cuda"
+
+secret "mok_privkey"
+
+option "version" type="string" {
+    description "Driver release, such as 615.71.09 or latest."
+    default "latest"
+}
+
+asset "repo-key" {
+    pin {
+        manual "nvidia rotates the repository key rarely"
+        version "73CD9B30"
+        url "https://developer.download.nvidia.com/compute/cuda/repos/fedora44/x86_64/{version}.pub"
+        sha256 "9221458f62030a18d5a28eecf44496016ff9c11548492ac2ce428f75c7513cab"
+    }
+}

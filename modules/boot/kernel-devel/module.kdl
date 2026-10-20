@@ -1,0 +1,9 @@
+schema-version 1
+
+description "Helpers that install the image kernel's headers for an out-of-tree module build"
+
+supports "fedora"
+
+provides "kernel-devel" file="/usr/libexec/kernel-devel-helpers.sh" build-only=#true
+
+after "kernel"

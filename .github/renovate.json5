@@ -9,7 +9,7 @@
 
   // Renovate updates the workflows' SHA-pinned actions here and nothing else.
   // The `renovate` annotations on a module's pins serve a repository that
-  // copies the module with `tect copy module`; nothing bumps them in this
+  // copies the module with `tect import module`; nothing bumps them in this
   // collection.
   "enabledManagers": ["github-actions"],
   // The pull request title check requires a typed subject, and Renovate

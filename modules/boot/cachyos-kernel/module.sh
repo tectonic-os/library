@@ -8,8 +8,12 @@ else
     dnf5 -y --setopt=tsflags=noscripts install --enablerepo="$COPR_BIESZCZADERS_KERNEL_CACHYOS" \
         kernel-cachyos \
         kernel-cachyos-core \
-        kernel-cachyos-modules \
-        kernel-cachyos-devel-matched
+        kernel-cachyos-modules
+    # The headers pull in gcc and binutils.
+    # binutils' scriptlet points /usr/bin/ld at ld.bfd.
+    # Without that scriptlet, /usr/bin/ld stays gold in every later module layer.
+    # gold refuses a relocatable link with --gc-sections, which some module builds use.
+    dnf5 -y install --enablerepo="$COPR_BIESZCZADERS_KERNEL_CACHYOS" kernel-cachyos-devel-matched
 
     echo "kernel-cachyos-core" > /usr/lib/kernel-build/kernel-package
 

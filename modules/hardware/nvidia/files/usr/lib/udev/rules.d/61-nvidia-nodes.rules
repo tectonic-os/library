@@ -1,0 +1,5 @@
+# A start does nothing once nvidia-nodes.service is active. This rule restarts
+# the unit when the nvidia driver binds a GPU at boot or on hotplug. The
+# restart creates a node for every GPU bound so far. The add event covers a GPU
+# that the nvidia driver bound in the initramfs.
+ACTION=="add|bind", SUBSYSTEM=="pci", DRIVER=="nvidia", RUN+="/usr/bin/systemctl --no-block restart nvidia-nodes.service"

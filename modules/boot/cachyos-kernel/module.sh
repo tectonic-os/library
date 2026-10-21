@@ -12,6 +12,8 @@ else
         kernel-cachyos-devel-matched
 
     echo "kernel-cachyos-core" > /usr/lib/kernel-build/kernel-package
+    echo "kernel-cachyos-devel-matched" > /usr/lib/kernel-build/kernel-devel-package
+    echo "$COPR_BIESZCZADERS_KERNEL_CACHYOS" > /usr/lib/kernel-build/kernel-devel-repo
 
     dnf5 -y install --enablerepo="$COPR_BIESZCZADERS_KERNEL_CACHYOS_ADDONS" \
         ananicy-cpp \

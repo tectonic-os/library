@@ -41,10 +41,10 @@ on:
 #               unmet-requires error, so the closure is walked from the
 #               providers rather than filtered from the diff, and its
 #               alternatives are split into separate images as the collection
-#               leg splits them. One per family, because a widened module's
-#               `requires` and `after` can be satisfiable on one family and
-#               dangling on another, and building nothing makes three of them
-#               cheap.
+#               leg splits them. The leg scaffolds one image for each family
+#               its matrix rows name. A widened module's `requires` can be met
+#               on one family and unmet on another. The leg builds nothing, so
+#               each image stays cheap.
 #   packages    every `packages` batch a family declares, resolved by apt in a
 #               container of that family and nothing else. It builds no image,
 #               so it costs seconds, and it fails on the one defect a widened

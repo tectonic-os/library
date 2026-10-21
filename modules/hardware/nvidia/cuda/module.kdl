@@ -1,0 +1,18 @@
+schema-version 1
+
+description "CUDA toolkit"
+
+supports "fedora"
+
+network "scripts"
+
+requires "build-environment"
+requires "nvidia-driver"
+requires "nvidia-repo"
+
+provides "nvidia-cuda" file="/usr/local/cuda/bin/nvcc"
+
+option "version" type="string" {
+    description "Toolkit release, such as 13.4 or latest. Each toolkit release needs a minimum nvidia driver release."
+    default "latest"
+}

@@ -1,17 +1,11 @@
 schema-version 1
 
-description "libvirt, QEMU/KVM and virt-manager, with the group and relabel workarounds they need"
+description "libvirt, QEMU/KVM and virt-manager, with group and relabel workarounds"
 
 supports "fedora" "debian" "ubuntu"
 
-// The deb split is different rather than renamed: Fedora's `libvirt` metapackage
-// is `libvirt-daemon-system` plus `libvirt-clients`, `qemu` is
-// `qemu-system-x86` plus `qemu-utils`, and `libvirt-nss` is `libnss-libvirt`.
-// `edk2-ovmf` is `ovmf`. All resolved 2026-09-05 on both deb bases.
-//
-// `qemu-user-static-aarch64` has no deb counterpart: both families ship one
-// `qemu-user-binfmt` covering every emulated architecture, so the two Fedora
-// entries collapse to one.
+// The deb families have no counterpart to qemu-user-static-aarch64. Their
+// qemu-user-binfmt covers every emulated architecture.
 packages "qemu-user-binfmt" "virt-manager" "virt-v2v" "virt-viewer"
 
 family "fedora" {
@@ -23,16 +17,7 @@ family "debian" "ubuntu" {
         "qemu-system-x86" "qemu-utils"
 }
 
-// No `after "hardened-malloc"`, which this carried until 2026-09-05. The wrap
-// in `module.sh` exists *because* of hardened_malloc — it drops `LD_PRELOAD`
-// for virt-manager, which crashes under it — but the ordering bought nothing:
-// that module's entire overlay is one file,
-// `/etc/environment.d/30-hardened-malloc.conf`, and `environment.d` is read by
-// the systemd user manager rather than by any build step, so neither layer can
-// see or clobber the other whichever order they build in.
-//
-// It had to go, because `after` is a hard edge: a dangling one is an error, so
-// the declaration made this module unusable on any image without
-// hardened_malloc — every deb image, hardened_malloc being an rpm from
-// secureblue's COPR, and equally a Fedora image that simply does not want it.
-// The shim is inert where nothing is preloaded, so it is safe everywhere.
+// The virt-manager wrap in `module.sh` needs no `after "hardened-malloc"`.
+// The systemd user manager reads the hardened_malloc preload from
+// `environment.d` when a user session starts. The build order of the two
+// modules changes nothing.

@@ -7,9 +7,8 @@ supports "fedora"
 network "scripts"
 
 requires "kernel-devel"
-requires "secureboot-key" "kernel-devel-helpers"
+after "secureboot-key"
 
-arg "KERNEL"
 secret "mok_privkey"
 
 asset "xone" {

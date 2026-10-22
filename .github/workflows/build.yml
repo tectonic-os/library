@@ -93,11 +93,11 @@ jobs:
             printf 'include=%s\n' "$(jq -c -s add <<< "${always}${deb}")" >> "$GITHUB_OUTPUT"
           fi
 
-  # Every leg lints the repository it scaffolds, and that lint prunes the
-  # `modules/.remote` the collection is imported into, so the collection's own
-  # shell is linted here or nowhere. `.shellcheckrc` carries what a consumer's
-  # disables, so a local `shellcheck` agrees with this job. `ruff.toml` holds
-  # the rule set, so a local `ruff check` agrees with it too.
+  # Every leg lints the repository it scaffolds. That lint reads only the
+  # modules the leg imports, so this job lints the whole collection's shell.
+  # `.shellcheckrc` disables the checks that a consumer repository disables.
+  # A local `shellcheck` then agrees with this job. `ruff.toml` holds the rule
+  # set, so a local `ruff check` agrees with it too.
   lint:
     name: Lint the collection's shell and Python
     runs-on: ubuntu-24.04
@@ -476,9 +476,6 @@ jobs:
               print "    base-images \"core\" {"
               print "        dir \"" root "/base-images/core\""
               print "    }"
-              print "    capabilities \"core\" {"
-              print "        dir \"" root "/capabilities\""
-              print "    }"
               print "}"
               replacing = 1
               next
@@ -491,10 +488,8 @@ jobs:
           for declaration in \
             '    modules "tectonic-modules" {' \
             '    base-images "core" {' \
-            '    capabilities "core" {' \
             "        dir \"${GITHUB_WORKSPACE}/modules\"" \
-            "        dir \"${GITHUB_WORKSPACE}/base-images/core\"" \
-            "        dir \"${GITHUB_WORKSPACE}/capabilities\""; do
+            "        dir \"${GITHUB_WORKSPACE}/base-images/core\""; do
             if [ "$(grep -Fxc "$declaration" "${ROOT}/repo.kdl" || true)" != 1 ]; then
               echo "::error::repo.kdl does not carry exactly one ${declaration}"
               exit 1
@@ -506,7 +501,6 @@ jobs:
           fi
           "$TECT_BIN" create image "$IMAGE" --root "$ROOT" --no-tui \
             --owner tectonic-os --base "$BASE"
-          "$TECT_BIN" fetch modules --root "$ROOT" --no-tui
           # The collection holds every module to the network it declares.
           printf 'security-policy {\n    network "strict"\n}\n' >> "${ROOT}/repo.kdl"
           alts=("${NAMES}".[0-9]*)

@@ -64,7 +64,7 @@ jobs:
   # build still gates `main`.
   legs:
     name: Choose the legs for this event
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     outputs:
@@ -100,7 +100,7 @@ jobs:
   # set, so a local `ruff check` agrees with it too.
   lint:
     name: Lint the collection's shell and Python
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     steps:
@@ -190,7 +190,7 @@ jobs:
   # through them would mean a condition on every one of them.
   packages:
     name: package lists ${{ matrix.family }}
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     strategy:
@@ -255,7 +255,7 @@ jobs:
     # not gate each other, and `fail-fast` stays off, so a registry flake on
     # one leg costs that leg alone.
     needs: [legs, lint, packages]
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
     strategy:

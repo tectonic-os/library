@@ -4,7 +4,11 @@ description "KDE Plasma desktop and the application set it ships with"
 
 supports "fedora" "debian" "ubuntu"
 
-provides "plasma-desktop" "display-manager" "graphical-session" "wayland"
+provides "plasma-desktop" "graphical-session" "wayland"
+
+// Each desktop enables its own display manager as display-manager.service.
+// Only one unit on the running system can hold that alias.
+provides "display-manager" exclusive=#true
 
 requires "build-environment"
 

@@ -8,11 +8,10 @@ network "scripts"
 
 requires "kernel-devel"
 requires "display-manager"
-requires "secureboot-key" "kernel-devel-helpers"
+after "secureboot-key"
 
 provides "looking-glass-client"
 
-arg "KERNEL"
 secret "mok_privkey"
 
 asset "looking-glass" {

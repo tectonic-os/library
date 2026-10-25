@@ -1,0 +1,52 @@
+#!/bin/sh
+set -eu
+
+# If no GPU is unbound or bound to nvidia, then the nvidia driver load fails.
+# A GPU on vfio-pci for a VM is one such case. The script then exits early, so
+# a service's Wants= does not fail this unit.
+gpu=
+for dev in /sys/bus/pci/devices/*; do
+    [ "$(cat "$dev/vendor")" = 0x10de ] || continue
+    case "$(cat "$dev/class")" in
+        0x0300* | 0x0302*) ;;
+        *) continue ;;
+    esac
+    driver=
+    if [ -e "$dev/driver" ]; then
+        driver="$(basename "$(readlink "$dev/driver")")"
+    fi
+    case "$driver" in
+        '' | nvidia) gpu="$dev" ;;
+        *) ;;
+    esac
+done
+if [ -z "$gpu" ]; then
+    exit 0
+fi
+
+# At boot, udev can be loading the nvidia driver when this unit starts.
+# nvidia-modprobe then returns before the driver has probed every GPU.
+# The kernel marks the driver live after the probe.
+/usr/bin/nvidia-modprobe
+waited=0
+while [ "$(cat /sys/module/nvidia/initstate)" != live ]; do
+    if [ "$waited" -ge 30 ]; then
+        echo "nvidia-nodes: /sys/module/nvidia/initstate did not read live within 30 seconds" >&2
+        exit 1
+    fi
+    sleep 1
+    waited=$((waited + 1))
+done
+
+/usr/bin/nvidia-modprobe -c 255
+for info in /proc/driver/nvidia/gpus/*/information; do
+    [ -e "$info" ] || continue
+    minor="$(sed -n 's/^Device Minor:[[:space:]]*//p' "$info")"
+    if [ -z "$minor" ]; then
+        echo "nvidia-nodes: no Device Minor line in ${info}" >&2
+        exit 1
+    fi
+    /usr/bin/nvidia-modprobe -c "$minor"
+done
+/usr/bin/nvidia-modprobe -m
+/usr/bin/nvidia-modprobe -u -c 0

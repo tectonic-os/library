@@ -697,8 +697,11 @@ jobs:
             --baseline "${RUNNER_TEMP}/baseline.json")"
           printf '%s\n' "$report"
           # The scaffolded repository does not enforce, so `tect scap` exits 0
-          # on a failed claim.
-          rows="$(printf '%s\n' "$report" | grep '^| tectonic-components/' || true)"
+          # on a failed claim. A component imported into the scaffold reports
+          # under its own path, so the rows are read from their table.
+          rows="$(printf '%s\n' "$report" | awk '
+            /^## / { table = ($0 == "## Declared coverage, measured"); next }
+            table && /^\| / && !/^\| (Component|---) /')"
           if [ -z "$rows" ]; then
             echo '::error::the report declared no claim at all'; exit 1
           fi

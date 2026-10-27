@@ -1,0 +1,11 @@
+schema-version 1
+
+description "dnf as the build environment every Fedora-family layer installs through, and the root filesystem work that closes it"
+
+targets "fedora" "rhel"
+
+network "scripts"
+
+provides "build-environment" exclusive=#true
+
+helpers "lib/family.sh"

@@ -1,0 +1,8 @@
+# EL's `90-default.preset` enables `sshd.service`. This keeps the network
+# closed until a component opens it.
+disable sshd.service
+disable sshd.socket
+
+# A composefs root is read-only, so /tmp needs a tmpfs. EL leaves the unit
+# disabled, and `bootc status` then fails to write its SELinux probe.
+enable tmp.mount

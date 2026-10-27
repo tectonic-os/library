@@ -1,0 +1,12 @@
+schema-version 1
+
+description "Chromium from Debian sid, forky's being two releases behind"
+
+// No Ubuntu leg: `chromium` there is a snap transitional and there is no sid
+// to reach past it, so the component would install a package that installs
+// nothing.
+targets "debian"
+
+requires "build-environment" "graphical-session"
+
+packages "chromium"

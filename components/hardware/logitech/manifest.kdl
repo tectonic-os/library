@@ -1,0 +1,11 @@
+schema-version 1
+
+description "Solaar rules for Logitech wireless peripherals"
+
+targets "fedora" "debian" "ubuntu"
+
+// Fedora splits the udev rules out as `solaar-udev`; neither deb family does,
+// so the deb leg installs the whole of Solaar to get them. Checked 2026-09-05:
+// there is no udev-only binary package on either.
+on "fedora" { packages "solaar-udev" }
+on "debian" "ubuntu" { packages "solaar" }

@@ -1,0 +1,7 @@
+schema-version 1
+
+description "A Debian non-free-firmware apt component"
+
+targets "debian"
+
+provides "non-free-firmware"

@@ -1,0 +1,13 @@
+schema-version 1
+
+description "GrapheneOS hardened_malloc, preloaded system wide"
+
+targets "fedora"
+
+requires "build-environment"
+
+provides "hardened-malloc"
+
+copr "secureblue/packages"
+
+packages "hardened_malloc" "no_rlimit_as" enablerepo="secureblue/packages"

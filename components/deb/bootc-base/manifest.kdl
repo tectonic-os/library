@@ -1,0 +1,132 @@
+schema-version 1
+
+description "The bootc parts for a deb-family container image"
+
+targets "debian" "ubuntu"
+
+network "scripts"
+
+provides "bootc-base"
+
+provides {
+    "bootc" witness="/usr/bin/bootc"
+    "bootupctl" witness="/usr/bin/bootupctl"
+    "dpkg-database" witness="/usr/lib/sysimage/dpkg"
+    "luks-initramfs"
+    "ssh" witness="/usr/sbin/sshd"
+}
+
+requires "build-environment"
+
+// bootc runs `podman images` to open its composefs store. This requirement
+// lets `tect check` report a missing runtime before a build.
+requires "container-runtime"
+
+// This omits `initramfs-generation`. A base can provide it, and a dependent's
+// finalize hook would run after this one builds the initramfs.
+
+// The source and vendor pins let the image build compile bootc offline.
+asset "bootc" {
+    pin {
+        renovate datasource="github-releases" depName="bootc-dev/bootc"
+        version "1.16.10"
+        url "https://github.com/bootc-dev/bootc/releases/download/v{version}/bootc-{version}.tar.zstd"
+        sha256 "1819e7bafabc26d0cbf544a94515c17eccfea449ea780527dc8b3d766f49de46"
+    }
+}
+
+asset "bootc-vendor" {
+    pin {
+        renovate datasource="github-releases" depName="bootc-dev/bootc"
+        version "1.16.10"
+        url "https://github.com/bootc-dev/bootc/releases/download/v{version}/bootc-{version}-vendor.tar.zstd"
+        sha256 "79185625d2a44f5e209155cdd1db7a81d3058decaaf6b32453688263f821d400"
+    }
+}
+
+// The bootupd pins let the image build compile the GRUB installer offline.
+asset "bootupd" {
+    pin {
+        renovate datasource="github-releases" depName="coreos/bootupd"
+        version "0.3.1"
+        url "https://github.com/coreos/bootupd/releases/download/v{version}/bootupd-{version}.crate"
+        sha256 "335ac06a450d59f4154a81ed96186e6296c799a584cfa3c3916c7a0023498c38"
+    }
+}
+
+asset "bootupd-vendor" {
+    pin {
+        renovate datasource="github-releases" depName="coreos/bootupd"
+        version "0.3.1"
+        url "https://github.com/coreos/bootupd/releases/download/v{version}/bootupd-{version}-vendor.tar.zstd"
+        sha256 "b9348f75a7c94f727e3a7bf2487113348431ea69c6d757ec3edcd626c0cb8576"
+    }
+}
+
+// If the prebuilt tarball fails its hash check, then the build compiles from
+// source.
+option "prebuilt-tools" type="bool" {
+    description "Use bootc and bootupd prebuilt from this component's pins."
+    default #false
+}
+
+// Each family has its own tarball, because the binaries link against family
+// libraries. Until a version and hash are set, the build compiles from source.
+asset "bootc-tools-debian" {
+    pin {
+        manual "the tools workflow builds it from the four pins above; this records the release it wrote"
+        version "none"
+        url "https://github.com/tectonic-os/modules/releases/download/deb-bootc-tools-{version}/deb-bootc-tools-debian-{version}.tar.zst"
+        sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+}
+
+asset "bootc-tools-ubuntu" {
+    pin {
+        manual "the tools workflow builds it from the four pins above; this records the release it wrote"
+        version "none"
+        url "https://github.com/tectonic-os/modules/releases/download/deb-bootc-tools-{version}/deb-bootc-tools-ubuntu-{version}.tar.zst"
+        sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+}
+
+// `curl` fetches the pinned assets. `systemd-analyze verify` needs `man-db`.
+// `systemd-cryptsetup` unlocks a LUKS root from the initramfs. dracut adds
+// TPM2 support when `tpm2-tools` is installed.
+packages {
+    "dracut"
+    "ostree"
+    "composefs"
+    "systemd-boot"
+    "systemd-boot-efi"
+    "shim-signed"
+    "grub-efi-amd64-signed"
+    "grub-common"
+    "systemd-resolved"
+    "libnss-resolve"
+    "libnss-myhostname"
+    "iproute2"
+    "skopeo"
+    "ca-certificates"
+    "zstd"
+    "curl"
+    "btrfs-progs"
+    "xfsprogs"
+    "e2fsprogs"
+    "dosfstools"
+    "fdisk"
+    "efibootmgr"
+    "cryptsetup-bin"
+    "systemd-cryptsetup"
+    "dmsetup"
+    "openssh-server"
+    "sudo"
+    "less"
+    "man-db"
+    "tpm2-tools"
+}
+
+on "debian" { packages "linux-image-amd64" "firmware-linux-free" }
+on "ubuntu" { packages "linux-image-generic" "linux-firmware-minimal" }
+
+fragment position="after"

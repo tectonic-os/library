@@ -1,0 +1,6 @@
+schema-version 1
+
+description "The image's own name in os-release"
+
+// The build renders os-release right after this component's layer, so the component ships no files.
+provides "os-release" witness="/usr/lib/os-release" exclusive=#true

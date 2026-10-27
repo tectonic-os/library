@@ -1,0 +1,23 @@
+# bootc writes its BLS entries through `/sysroot/boot`. The bind from
+# `sysroot-boot.mount` inherits `ro` from `/boot`, and a remount of `/boot`
+# does not reach the bind.
+# A bind cannot be writable over a read-only superblock, so the superblock
+# goes first. bootc keeps `/boot` read-only so a package manager cannot change
+# it. The last line restores that with `bind`, so the flag is per mount.
+[Unit]
+Description=Make the boot partition writable where bootc writes its entries
+After=sysroot-boot.mount
+Requires=sysroot-boot.mount
+# If /boot is inside the root filesystem, then a remount here would make the
+# root filesystem writable.
+ConditionPathIsMountPoint=/sysroot/boot
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/bin/mount -o remount,rw /boot
+ExecStart=/usr/bin/mount -o remount,bind,rw /sysroot/boot
+ExecStart=/usr/bin/mount -o remount,bind,ro /boot
+
+[Install]
+WantedBy=local-fs.target

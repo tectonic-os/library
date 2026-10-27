@@ -1,0 +1,11 @@
+schema-version 1
+
+description "The just command runner and the system justfile every component's recipes are collected into"
+
+targets "fedora" "debian" "ubuntu"
+
+provides "just" witness="/usr/bin/just"
+
+collects "justfile.inc" into="/usr/share/just/justfile.apps" priority=500
+
+packages "just"

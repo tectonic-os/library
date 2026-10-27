@@ -1,0 +1,12 @@
+schema-version 1
+
+description "Plymouth boot splash on the spinner theme"
+
+targets "fedora" "debian" "ubuntu"
+
+requires "build-environment"
+
+packages "plymouth"
+
+on "fedora" "ubuntu" { packages "plymouth-theme-spinner" }
+on "debian" { packages "plymouth-themes" }

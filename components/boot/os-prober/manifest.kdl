@@ -1,0 +1,7 @@
+schema-version 1
+
+description "GRUB dual boot discovery, so another installed OS shows up in the boot menu"
+
+targets "fedora"
+
+provides "grub2-os-prober-regen" witness="/usr/libexec/grub2-os-prober-regen"

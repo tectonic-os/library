@@ -1,0 +1,21 @@
+schema-version 1
+
+description "KDE developer workstation over kinoite-main"
+
+provides {
+    "rechunking"
+    "graphical-session"
+    "flatpak" witness="/usr/bin/flatpak"
+}
+
+imports "fedora/build-environment" "package-manager/dnf5" "identity"
+
+base "ghcr.io/ublue-os/aurora:$version" {
+    family "fedora"
+    bootloader "grub2"
+    scap-content "ssg-fedora-ds.xml"
+}
+
+option "version" type="string" {
+    default "stable"
+}

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Fail when an asset pin in a module.kdl carries no hash.
+"""Fail when an asset pin in a manifest.kdl carries no hash.
 
-Usage: hashed.py <module.kdl>...
+Usage: hashed.py <manifest.kdl>...
 
 A pin is hashed when it carries a sha256, or when its version is a full git
-commit, which names the content the way a hash does.
+commit. A full commit names the content the way a hash does.
 """
 
 import re

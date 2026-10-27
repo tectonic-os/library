@@ -2,7 +2,7 @@ name: PR title
 
 # A squash merge makes the pull request title the commit subject on `main`.
 # The check has its own workflow because it must rerun when the user edits the
-# title, and the lint and build workflows must not rerun on every edit of the
+# title. The lint and build workflows must not rerun on every edit of the
 # description.
 on:
   pull_request:

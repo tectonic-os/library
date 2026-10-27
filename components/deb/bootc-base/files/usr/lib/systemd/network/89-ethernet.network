@@ -1,0 +1,12 @@
+# SPDX-FileCopyrightText: systemd contributors
+# SPDX-FileCopyrightText: The tectonic-os contributors
+# SPDX-License-Identifier: Apache-2.0 AND MIT-0
+# This is systemd's `89-ethernet.network.example` unchanged. Debian configures
+# no network link, so an installed machine has no address without this file.
+# `Kind=!*` keeps podman's bridges and veths from taking a lease.
+[Match]
+Kind=!*
+Type=ether
+
+[Network]
+DHCP=yes

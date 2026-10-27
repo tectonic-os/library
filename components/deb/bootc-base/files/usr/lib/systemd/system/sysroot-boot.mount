@@ -1,0 +1,21 @@
+# bootc reads its boot entries from `/sysroot/boot`. If /boot is its own
+# partition, then the `systemd.mount-extra` karg mounts it at `/boot` alone.
+# Without this bind, `bootc status` and `bootc upgrade` fail.
+# The partition UUID is unknown when the image is built, so this binds `/boot`.
+# The conditions skip the bind where `/sysroot/boot` already holds the entries.
+# `boot.mount` exists only at boot, so naming it fails `systemd-analyze verify`.
+# `RequiresMountsFor=/boot` orders the bind without naming the unit.
+[Unit]
+Description=Mount the boot partition where bootc reads its entries
+RequiresMountsFor=/boot
+ConditionPathIsDirectory=/sysroot/boot
+ConditionPathIsDirectory=!/sysroot/boot/loader
+
+[Mount]
+What=/boot
+Where=/sysroot/boot
+Type=none
+Options=bind
+
+[Install]
+WantedBy=local-fs.target

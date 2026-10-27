@@ -1,0 +1,25 @@
+schema-version 1
+
+description "Faillock lockout, password quality and a rescue sulogin"
+
+targets "fedora" "rhel" "debian" "ubuntu"
+
+// On a deb family, `deb/finalize.sh` adds the PAM modules that read this
+// component's config files. `dictcheck = 1` fails every password change if no
+// cracklib dictionary exists, so `cracklib-runtime` is required.
+on "debian" "ubuntu" {
+    packages "libpam-pwquality" "cracklib-runtime"
+}
+
+// This component ships no sshd preset, because `login-access` decides ssh.
+
+// The claim is gated because the deb datastream maps these numbers to other
+// rules.
+on "fedora" "rhel" {
+    satisfies {
+        stig "SRG-OS-000071-GPOS-00039" \
+            "SRG-OS-000072-GPOS-00040" \
+            "SRG-OS-000266-GPOS-00101"
+        nist "AC-7.1(ii)"
+    }
+}

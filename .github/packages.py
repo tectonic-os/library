@@ -1,92 +1,62 @@
 #!/usr/bin/env python3
-"""Print `<module> <package>...` for every module declaring packages for one family.
+"""Print `<component> <package>...` for every component declaring packages for one family.
 
-Read by the `packages` job, which dry-runs each line in a container of that
-family. A name that does not resolve is then reported against the module that
-wrote it rather than against a union of every list, which is the whole reason
-the lines are kept apart. Run from the library root.
+The `packages` job dry-runs each line in a container of that family. One line
+per component lets the job name the component whose package does not resolve.
+Run from the library root.
 
     packages.py <family>
     packages.py <family> --repos
 
-`--repos` prints instead every `repo` file this family would source, which the
-job runs before it resolves anything: a package out of a third-party archive
-cannot be resolved on a base that has never heard of it, and skipping those
-modules would leave the widenings most likely to break as the ones nothing
-measures. A module declaring no packages is listed too -- one that only turns
-a component on is exactly the module the others depend on.
+`--repos` prints every `repo.sh` this family would source instead. The job runs
+them first, because a package from a third-party archive resolves only after
+its archive is added. A component that declares no packages is listed too. It
+can enable an archive section that other components install from.
 
-Only modules whose `supports` names the family are read, so the set is the same
-one the `collection` leg of that family imports.
+Only components that target the family are read, as in the `collection` leg of
+that family.
 """
 
 import re
 import sys
 from pathlib import Path
 
-MODULES = Path("modules")
+from closure import nodes
+
+COMPONENTS = Path("components")
 QUOTED = re.compile(r'"([^"]*)"')
-# `enablerepo="tailscale-stable"` is a property of the batch and not a package
-# in it, so its value is dropped before the names are read.
-PROP = re.compile(r'[\w-]+="[^"]*"')
-# `family "debian" "ubuntu" {` opening either a one-line or a braced gate.
-GATE = re.compile(r'^family((?:\s+"[^"]*")+)\s*\{(.*)$')
-PACKAGES = re.compile(r"^packages(\s.*)$")
 
 
 def lists(text, family):
     """Every package name one manifest installs on one family, in file order.
 
-    Outside a gate is every family the module supports; inside one is the
-    families it names. Both spellings of a gate are read: the one-liner
-    `family "x" { packages ... }` and the braced block over several lines.
+    Packages outside a gate apply to every family the component targets.
+    Packages inside a gate apply only to the families it names. A `packages`
+    node writes its names on its line or as the children of its block.
     """
-    if not re.search(r'^supports .*"%s"' % re.escape(family), text, re.M):
+    if not targets(text, family):
         return []
-    # A list may be continued across lines with a trailing backslash, and a
-    # `packages` inside a braced gate is indented.
-    names, gate, depth = [], None, 0
-    for line in text.replace("\\\n", " ").splitlines():
-        line = line.strip()
-        if not line or line.startswith("//"):
+    names = []
+    for parents, name, args in nodes(text):
+        gates = [given for kind, given in parents if kind == "on"]
+        if any(family not in gate for gate in gates):
             continue
-        if depth:
-            # Inside a braced gate: its `packages`, then its closing brace.
-            if line.startswith("}"):
-                depth, gate = 0, None
-                continue
-            if gate is not None and family in gate:
-                found = PACKAGES.match(line)
-                if found:
-                    names += declared(found.group(1))
-            continue
-        opened = GATE.match(line)
-        if opened:
-            gate = QUOTED.findall(opened.group(1))
-            rest = opened.group(2).strip()
-            if rest.endswith("}"):
-                # A one-liner: the whole gate is on this line.
-                if family in gate:
-                    found = PACKAGES.match(rest[:-1].strip())
-                    if found:
-                        names += declared(found.group(1))
-                gate = None
-            else:
-                depth = 1
-            continue
-        found = PACKAGES.match(line)
-        if found:
-            names += declared(found.group(1))
+        if name == "packages" and args:
+            names += args
+        elif parents and parents[-1][0] == "packages":
+            names.append(name)
     return names
 
 
-def declared(rest):
-    """The package names on one `packages` line, without its properties."""
-    return QUOTED.findall(PROP.sub("", rest))
+def targets(text, family):
+    """Whether a manifest builds on `family`. No `targets` is every family."""
+    lines = re.findall(r'^targets\s(.*)$', text, re.M)
+    return not lines or any(family in QUOTED.findall(line) for line in lines)
 
 
-# Widest first and the module root last, which is the order the tool's own
-# `layout::family_first` walks: one `repo` is picked, never layered.
+# `FAMILY_DIRS` lists the most specific directory first and the component root
+# last, in the order that the tool's `layout::family_first` walks. The first
+# `repo.sh` found is the only one used.
 FAMILY_DIRS = {
     "debian": ["debian/", "deb/", ""],
     "ubuntu": ["ubuntu/", "deb/", ""],
@@ -94,10 +64,10 @@ FAMILY_DIRS = {
 }
 
 
-def repo(module, family):
-    """The `repo` file this module ships for this family, if it ships one."""
+def repo(component, family):
+    """The `repo.sh` this component ships for this family, if it ships one."""
     for at in FAMILY_DIRS.get(family, [""]):
-        found = module / at / "repo"
+        found = component / at / "repo.sh"
         if found.is_file():
             return found
     return None
@@ -107,11 +77,11 @@ def main(argv):
     if len(argv) not in (2, 3) or (len(argv) == 3 and argv[2] != "--repos"):
         sys.exit(__doc__)
     family, repos = argv[1], len(argv) == 3
-    for manifest in sorted(MODULES.rglob("module.kdl")):
+    for manifest in sorted(COMPONENTS.rglob("manifest.kdl")):
         if any(part.startswith(".") for part in manifest.parts[:-1]):
             continue
         text = manifest.read_text()
-        if not re.search(r'^supports .*"%s"' % re.escape(family), text, re.M):
+        if not targets(text, family):
             continue
         if repos:
             found = repo(manifest.parent, family)
@@ -120,7 +90,7 @@ def main(argv):
             continue
         names = lists(text, family)
         if names:
-            print(manifest.parent.relative_to(MODULES).as_posix(), *names)
+            print(manifest.parent.relative_to(COMPONENTS).as_posix(), *names)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,18 @@
+schema-version 1
+
+description "AppArmor parser, profiles and aa-status"
+
+targets "debian" "ubuntu"
+
+provides "apparmor-policy" witness="/usr/sbin/apparmor_parser"
+
+requires "build-environment"
+
+// A base that carries `apparmor_parser` provides this capability itself.
+// `docker.io/library/debian:*` has no parser, so this component provides it.
+//
+// `apparmor-utils` adds `aa-status`, so the user can see what a booted image
+// enforces.
+//
+// The Debian postinst enables `apparmor.service`, so this ships no preset.
+packages "apparmor" "apparmor-utils"

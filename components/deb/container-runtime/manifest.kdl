@@ -1,0 +1,18 @@
+schema-version 1
+
+description "Podman and an OCI runtime for bootc's image store"
+
+targets "debian" "ubuntu"
+
+provides "container-runtime"
+
+requires "build-environment"
+
+// bootc runs `podman images` to open its composefs image store, so the
+// installed machine needs podman. Podman defaults to `crun` on both families.
+provides {
+    "podman" witness="/usr/bin/podman"
+    "crun" witness="/usr/bin/crun"
+}
+
+packages "podman" "crun"

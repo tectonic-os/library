@@ -1,0 +1,7 @@
+schema-version 1
+
+description "System maintenance recipes, collected into the system justfile"
+
+targets "fedora" "debian" "ubuntu"
+
+requires "just"

@@ -1,0 +1,17 @@
+schema-version 1
+
+description "SSG remediation for the profile the image conforms to"
+
+targets "fedora" "rhel"
+
+network "scripts"
+
+// `tect check` reads this capability to tell an image that declares
+// `conforms` but installs no remediation.
+provides "scap-remediation"
+
+// The finalize layer mounts /var/log and /var/cache as build caches and holds
+// /opt aside, so a fix that writes there is lost. This hook runs after every
+// component layer, but not always after every other hook.
+
+// This component claims no rules, because SSG's content closes them.

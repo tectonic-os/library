@@ -1,0 +1,7 @@
+schema-version 1
+
+description "Staged bootc auto-update timer"
+
+targets "fedora" "debian" "ubuntu"
+
+requires "build-environment" "signature-policy"

@@ -1,0 +1,36 @@
+schema-version 1
+
+description "libvirt, QEMU/KVM and virt-manager, with group and relabel workarounds"
+
+targets "fedora" "debian" "ubuntu"
+
+// The deb families have no counterpart to qemu-user-static-aarch64. Their
+// qemu-user-binfmt covers every emulated architecture.
+packages "qemu-user-binfmt" "virt-manager" "virt-v2v" "virt-viewer"
+
+on "fedora" {
+    packages {
+        "edk2-ovmf"
+        "libvirt"
+        "libvirt-nss"
+        "qemu"
+        "qemu-img"
+        "qemu-system-x86-core"
+        "qemu-user-static-aarch64"
+    }
+}
+on "debian" "ubuntu" {
+    packages {
+        "ovmf"
+        "libvirt-daemon-system"
+        "libvirt-clients"
+        "libnss-libvirt"
+        "qemu-system-x86"
+        "qemu-utils"
+    }
+}
+
+// The virt-manager wrap in `component.sh` needs no `after "hardened-malloc"`.
+// The systemd user manager reads the hardened_malloc preload from
+// `environment.d` when a user session starts. The build order of the two
+// components changes nothing.

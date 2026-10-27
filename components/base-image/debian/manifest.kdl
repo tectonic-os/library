@@ -1,0 +1,20 @@
+schema-version 1
+
+// Debian carries no kernel, no dracut, no bootc and no AppArmor userspace.
+// `bootc-base` makes it bootable at image build time.
+// Debian packages no `bootupd`, so the bootloader is reached with `--composefs-backend`.
+// That flag needs libostree 2025.3 or later.
+// forky is the first Debian release that carries it.
+
+description "Debian, which a component set has to turn into a bootc image"
+
+imports "deb/build-environment" "package-manager/apt" "deb/bootc-base" "identity"
+
+base "docker.io/library/debian:$version" {
+    family "debian"
+    bootloader "grub2" "systemd"
+}
+
+option "version" type="string" {
+    default "forky"
+}

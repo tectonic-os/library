@@ -1,0 +1,7 @@
+schema-version 1
+
+description "The grub.cfg regeneration recipe, for when a new OS is installed beside this one"
+
+targets "fedora"
+
+requires "just" "grub2-os-prober-regen"

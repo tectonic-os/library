@@ -1,0 +1,7 @@
+schema-version 1
+
+description "apt, the package manager of the deb family"
+
+targets "debian" "ubuntu"
+
+provides "package-manager/apt" witness="/usr/bin/apt-get"

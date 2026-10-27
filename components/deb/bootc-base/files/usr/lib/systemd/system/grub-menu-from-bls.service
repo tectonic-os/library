@@ -1,0 +1,15 @@
+[Unit]
+Description=Render the GRUB menu from the BLS entries
+ConditionPathIsDirectory=/boot/loader/entries
+
+# The renderer writes under `/sysroot/boot`. That mount is read-only until
+# `sysroot-boot-rw.service` runs. If that service is skipped by its
+# condition, then `/sysroot/boot` is already writable.
+After=sysroot-boot-rw.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/libexec/grub-menu-from-bls
+
+[Install]
+WantedBy=multi-user.target

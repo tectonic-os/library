@@ -1,0 +1,13 @@
+schema-version 1
+
+description "su restricted to the administrative group"
+
+targets "fedora" "rhel" "debian" "ubuntu"
+
+// The claim is gated because the deb datastream maps this number to AppArmor
+// and sysctl rules.
+on "fedora" "rhel" {
+    satisfies {
+        stig "SRG-OS-000312-GPOS-00123"
+    }
+}

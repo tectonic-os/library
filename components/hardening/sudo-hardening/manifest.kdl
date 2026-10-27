@@ -1,0 +1,13 @@
+schema-version 1
+
+description "Sudo with use_pty, its own log and a short credential cache"
+
+targets "fedora" "rhel" "debian" "ubuntu"
+
+mode "/etc/sudoers.d/99-hardening" "0440"
+
+// The claim needs no gate, because every datastream maps `Req-10.2.5` to
+// `sudo_add_use_pty`.
+satisfies {
+    pci-dss "Req-10.2.5"
+}

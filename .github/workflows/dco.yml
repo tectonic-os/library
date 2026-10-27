@@ -23,7 +23,7 @@ jobs:
       # The commits are the ones the base branch does not hold yet, because a
       # branch updated from `main` can carry commits past `base.sha`. An
       # unsigned two-parent merge is allowed only when its tree is the clean,
-      # automatic result of merging those parents; GitHub's "Update branch"
+      # automatic result of merging those parents. GitHub's "Update branch"
       # can write such a commit without a trailer.
       - name: Check every commit is signed off by its author
         env:

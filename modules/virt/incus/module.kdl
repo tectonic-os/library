@@ -1,7 +1,0 @@
-schema-version 1
-
-description "Incus system container and VM manager"
-
-supports "fedora" "debian" "ubuntu"
-
-packages "incus" "incus-agent" "lxc" "systemd-container"

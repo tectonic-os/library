@@ -1,0 +1,72 @@
+schema-version 1
+
+description "The bootc parts for a Rocky Linux container image"
+
+targets "rhel"
+
+provides "bootc-base"
+
+// A component that ships `selinux/` policy requires this one, so it builds
+// after it.
+provides "selinux-policy" witness="/usr/sbin/semodule"
+
+// bootc runs `podman images` to open its image store, so the installed
+// machine needs podman.
+provides "container-runtime"
+
+provides {
+    "bootc" witness="/usr/bin/bootc"
+    "bootupctl" witness="/usr/bin/bootupctl"
+    "podman" witness="/usr/bin/podman"
+    "crun" witness="/usr/bin/crun"
+    "luks-initramfs"
+}
+// This component's preset leaves sshd disabled.
+provides "ssh" witness="/usr/sbin/sshd"
+
+requires "build-environment"
+
+// This omits `initramfs-generation`, because a dependent's hook would run
+// after `finalize.sh` builds the initramfs. CI reads `rechunking` from the
+// base alone.
+
+// Rocky's signed repos carry every part, so this component pins nothing.
+// The Rocky container has no `systemd`. dracut compresses with `zstd`.
+// `fetch-helpers.sh` needs `curl`. `systemd-analyze verify` needs `man-db`
+// for a unit's `Documentation=man:` link.
+packages {
+    "systemd"
+    "systemd-udev"
+    "kernel"
+    "dracut"
+    "ostree"
+    "composefs"
+    "bootc"
+    "bootupd"
+    "rpm-ostree"
+    "skopeo"
+    "podman"
+    "crun"
+    "selinux-policy-targeted"
+    "policycoreutils"
+    "NetworkManager"
+    "openssh-server"
+    "sudo"
+    "iproute"
+    "shim-x64"
+    "grub2-efi-x64"
+    "grub2-pc"
+    "efibootmgr"
+    "e2fsprogs"
+    "xfsprogs"
+    "dosfstools"
+    "cryptsetup"
+    "lvm2"
+    "ca-certificates"
+    "curl"
+    "zstd"
+    "less"
+    "man-db"
+}
+
+fragment position="after"

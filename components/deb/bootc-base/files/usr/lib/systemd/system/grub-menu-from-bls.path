@@ -1,0 +1,13 @@
+[Unit]
+Description=Watch the BLS entries for a staged deployment
+
+# `bootc upgrade` writes the next boot's entries to `loader/entries.staged`.
+# They reach `loader/entries` only at shutdown, so this watches both.
+# systemd watches the nearest parent of an absent path. It fires when
+# `entries.staged` appears and when a cancelled upgrade removes it.
+[Path]
+PathChanged=/boot/loader/entries
+PathChanged=/boot/loader/entries.staged
+
+[Install]
+WantedBy=multi-user.target

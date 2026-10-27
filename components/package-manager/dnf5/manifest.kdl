@@ -1,0 +1,7 @@
+schema-version 1
+
+description "dnf5, the package manager of the Fedora family"
+
+targets "fedora"
+
+provides "package-manager/dnf5" witness="/usr/bin/dnf5"

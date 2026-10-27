@@ -1,0 +1,20 @@
+schema-version 1
+
+description "SSH access and a hypervisor-created console account"
+
+targets "fedora" "debian" "ubuntu"
+
+// The base installs `openssh-server`. This component enables it with a
+// preset. The unit is `ssh.service` on the deb family and `sshd.service` on
+// Fedora. A preset line for a missing unit fails the build, so each family
+// has its own preset.
+requires "ssh"
+
+// The daemon accepts no login until the image holds this key.
+// `tect create key ssh` writes the pair. The private half stays on the
+// machine that made it.
+key "ssh" {
+    generator "ssh-keygen"
+    public "/usr/lib/tectonic/authorized_keys"
+    private "id_ed25519"
+}

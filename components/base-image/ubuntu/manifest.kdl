@@ -1,0 +1,14 @@
+schema-version 1
+
+description "An Ubuntu LTS bootc image"
+
+imports "deb/build-environment" "package-manager/apt" "deb/bootc-base" "identity"
+
+base "docker.io/library/ubuntu:$version" {
+    family "ubuntu"
+    bootloader "grub2" "systemd"
+}
+
+option "version" type="string" {
+    default "26.04"
+}

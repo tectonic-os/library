@@ -1,0 +1,5 @@
+# The base declares no console, so an installed machine shows nothing after
+# the firmware hands off. The kernel writes to every console named.
+# `/dev/console` is the last one named, so a headless machine gets its login
+# prompt on the serial line.
+kargs = ["console=tty0", "console=ttyS0,115200n8"]

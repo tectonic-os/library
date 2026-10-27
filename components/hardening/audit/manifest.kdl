@@ -1,0 +1,47 @@
+schema-version 1
+
+description "auditd with the DISA STIG audit rules"
+
+targets "fedora" "rhel" "debian" "ubuntu"
+
+requires "build-environment"
+
+on "fedora" "rhel" {
+    packages "audit"
+}
+
+on "debian" "ubuntu" {
+    packages "auditd"
+}
+
+// `privileged.rules` is per family, because the kernel refuses a watch on a
+// directory that does not exist.
+mode "/etc/audit/rules.d/access.rules" "0600"
+mode "/etc/audit/rules.d/actions.rules" "0600"
+mode "/etc/audit/rules.d/audit.rules" "0600"
+mode "/etc/audit/rules.d/audit_rules_usergroup_modification.rules" "0600"
+mode "/etc/audit/rules.d/delete.rules" "0600"
+mode "/etc/audit/rules.d/export.rules" "0600"
+mode "/etc/audit/rules.d/immutable.rules" "0600"
+mode "/etc/audit/rules.d/logins.rules" "0600"
+mode "/etc/audit/rules.d/modules.rules" "0600"
+mode "/etc/audit/rules.d/perm_mod.rules" "0600"
+mode "/etc/audit/rules.d/privileged.rules" "0600"
+mode "/etc/audit/rules.d/setgid.rules" "0600"
+mode "/etc/audit/rules.d/setuid.rules" "0600"
+
+// The claim is gated because no deb datastream measures these numbers.
+on "fedora" "rhel" {
+    satisfies {
+        stig "SRG-OS-000057-GPOS-00027" \
+            "SRG-OS-000004-GPOS-00004" \
+            "SRG-OS-000326-GPOS-00126" \
+            "SRG-OS-000274-GPOS-00104" \
+            "SRG-OS-000064-GPOS-00033" \
+            "SRG-OS-000474-GPOS-00219" \
+            "SRG-OS-000463-GPOS-00207" \
+            "SRG-OS-000465-GPOS-00209" \
+            "SRG-OS-000467-GPOS-00211" \
+            "SRG-OS-000461-GPOS-00205"
+    }
+}

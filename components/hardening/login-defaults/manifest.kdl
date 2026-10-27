@@ -1,0 +1,20 @@
+schema-version 1
+
+description "Password ageing, length, failure delay and umask defaults"
+
+targets "fedora" "rhel" "debian" "ubuntu"
+
+// The base hashes with yescrypt. This rule asks for the weaker SHA512, so SSG
+// remediation must not apply it. A FIPS image needs SHA-512 crypt and lifts
+// this refusal with `allow-remediation`.
+refuses "set_password_hashing_algorithm_logindefs" \
+    because="the base is on yescrypt and this rule asks for SHA512, so passing it would weaken the image outside FIPS"
+
+// The claim is gated because `ssg-debian13-ds.xml` has none of these numbers.
+on "fedora" "rhel" {
+    satisfies {
+        stig "SRG-OS-000076-GPOS-00044" \
+            "SRG-OS-000075-GPOS-00043" \
+            "SRG-OS-000480-GPOS-00228"
+    }
+}

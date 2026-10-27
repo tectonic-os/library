@@ -1,0 +1,11 @@
+schema-version 1
+
+description "The apt build environment for the deb family"
+
+targets "debian" "ubuntu"
+
+network "scripts"
+
+provides "build-environment" exclusive=#true
+
+helpers "lib/family.sh"

@@ -1,0 +1,29 @@
+schema-version 1
+
+description "CachyOS kernel and companions, with Secure Boot module signing"
+
+targets "fedora"
+
+network "scripts"
+
+provides {
+    "kernel-devel"
+    "kernel-package" witness="/usr/lib/kernel-build/kernel-package"
+    "kernel-devel-helpers" witness="/usr/libexec/kernel-devel-helpers.sh" build-only=#true
+}
+
+key "secureboot" {
+    generator "openssl" profile="module-signing" bits=4096
+    public "/usr/share/secureboot/sb_cert.der" format="der"
+    private "MOK.priv"
+}
+
+requires "build-environment" "initramfs-generation"
+
+copr "bieszczaders/kernel-cachyos"
+copr "bieszczaders/kernel-cachyos-addons"
+
+collects "dracut.modules" into="/usr/lib/kernel-build/dracut.modules" priority=500
+
+arg "KERNEL"
+secret "mok_privkey"

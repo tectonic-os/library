@@ -1,0 +1,12 @@
+schema-version 1
+
+description "Account lock 30 days after password expiry"
+
+targets "fedora" "rhel" "debian" "ubuntu"
+
+// The claim is gated because `ssg-debian13-ds.xml` has no rule for `Req-8.1.4`.
+on "fedora" "rhel" {
+    satisfies {
+        pci-dss "Req-8.1.4"
+    }
+}

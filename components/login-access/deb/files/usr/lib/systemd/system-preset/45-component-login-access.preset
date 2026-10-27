@@ -1,0 +1,2 @@
+# `deb/bootc-base` disables `ssh.socket`. This line enables the service.
+enable ssh.service

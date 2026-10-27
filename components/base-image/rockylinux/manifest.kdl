@@ -1,0 +1,15 @@
+schema-version 1
+
+description "A Rocky Linux bootc image"
+
+imports "fedora/build-environment" "package-manager/dnf4" "rhel/bootc-base" "identity"
+
+base "quay.io/rockylinux/rockylinux:$version" {
+    family "rhel"
+    bootloader "grub2"
+    scap-content "ssg-rl10-ds.xml"
+}
+
+option "version" type="string" {
+    default "10"
+}

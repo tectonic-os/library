@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Print a module's pinned asset fields as an environment file.
+"""Print a component's pinned asset fields as an environment file.
 
-Usage: pins.py <module directory>
+Usage: pins.py <component directory>
 
 Maintainers run this script from the collection root when they compile pinned
 sources outside an image build. They receive the field names and `{version}`
-expansion that `tect` provides inside a module layer.
+expansion that `tect` provides inside a component layer.
 """
 
 import re
@@ -48,7 +48,7 @@ def pins(text):
 def main(argv):
     if len(argv) != 2:
         sys.exit(__doc__)
-    text = (Path(argv[1]) / "module.kdl").read_text()
+    text = (Path(argv[1]) / "manifest.kdl").read_text()
     for name, value in pins(text):
         print(f"{name}={value}")
 

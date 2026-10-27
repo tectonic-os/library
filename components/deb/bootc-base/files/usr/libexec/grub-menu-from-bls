@@ -1,0 +1,97 @@
+#!/bin/sh
+# This renders the BLS entries into a GRUB menu, because the signed deb GRUB
+# has no `blscfg` and Secure Boot blocks `blsuki.mod`. bootupd's static config
+# sources `custom.cfg`. bootc gives the newest deployment the lowest sort-key,
+# so it becomes the default.
+#
+# Nothing renders the menu during an install, so an installer passes its
+# mounted target root. The paths inside the menu are absolute on the boot
+# filesystem, so the root never reaches them.
+set -eu
+
+root="${1:-}"
+
+# bootc writes its entries at `/sysroot/boot`, and `sysroot-boot-rw.service`
+# leaves that mount writable. `/boot` is the deployment's read-only view.
+boot="${root:-/sysroot}/boot"
+
+# If `sysroot-boot.mount` did not run, then bootc and GRUB use different
+# directories, and the `grub2` check below would exit 0 in silence.
+if [ -z "$root" ] && mountpoint -q /boot && ! mountpoint -q /sysroot/boot; then
+    echo "grub-menu-from-bls: /boot is its own partition but /sysroot/boot is not bound to it, so bootc and this script disagree about where the entries are; sysroot-boot.mount did not run" >&2
+    exit 1
+fi
+
+entries="${boot}/loader/entries"
+staged="${boot}/loader/entries.staged"
+grubdir="${boot}/grub2"
+out="${grubdir}/custom.cfg"
+
+# `bootc upgrade` writes the next boot's entries to `loader/entries.staged`.
+# `bootc-finalize-staged.service` renames them over `loader/entries` at
+# shutdown, so a menu from `entries` would boot the old deployment. The staged
+# directory holds the new and the booted deployment, so it is the whole menu.
+# bootc creates the staged directory before it writes the `.conf` files, so
+# an empty one is left for the next render.
+if [ -d "$staged" ]; then
+    staged_holds_entry=
+    for conf in "$staged"/*.conf; do
+        if [ -f "$conf" ]; then
+            staged_holds_entry=yes
+        fi
+        break
+    done
+    [ -n "$staged_holds_entry" ] || exit 0
+    entries="$staged"
+fi
+
+[ -d "$entries" ] || exit 0
+[ -d "$grubdir" ] || exit 0
+
+fields() {
+    for conf in "$entries"/*.conf; do
+        [ -f "$conf" ] || continue
+        title=''
+        kernel=''
+        initrd=''
+        options=''
+        sort_key=''
+        while read -r key value; do
+            case "$key" in
+                title) title="$value" ;;
+                linux) kernel="$value" ;;
+                initrd) initrd="$value" ;;
+                options) options="$value" ;;
+                sort-key) sort_key="$value" ;;
+            esac
+        done < "$conf"
+        # A half-written entry has no kernel, so skipping it keeps the menu.
+        [ -n "$kernel" ] || continue
+        printf '%s\t%s\t%s\t%s\t%s\n' \
+            "${sort_key:-${conf##*/}}" "${title:-${conf##*/}}" \
+            "$kernel" "$initrd" "$options"
+    done | sort
+}
+
+tmp="${out}.new"
+: > "$tmp"
+n=0
+fields | while IFS="$(printf '\t')" read -r _ title kernel initrd options; do
+    if [ "$n" -eq 0 ]; then
+        printf "set default='bls-0'\n" >> "$tmp"
+    fi
+    printf "menuentry '%s' --id 'bls-%s' {\n" "$title" "$n" >> "$tmp"
+    printf '  linux %s %s\n' "$kernel" "$options" >> "$tmp"
+    if [ -n "$initrd" ]; then
+        printf '  initrd %s\n' "$initrd" >> "$tmp"
+    fi
+    printf '}\n' >> "$tmp"
+    n=$((n + 1))
+done
+
+if [ ! -s "$tmp" ]; then
+    rm -f "$tmp"
+    echo "no usable BLS entry under ${entries}" >&2
+    exit 1
+fi
+mv -f "$tmp" "$out"

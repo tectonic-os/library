@@ -1,0 +1,11 @@
+schema-version 1
+
+description "Search Bazaar's storefront from KRunner, the Plasma launcher"
+
+targets "fedora"
+
+requires "build-environment" "plasma-desktop" "bazaar"
+
+copr "ublue-os/packages"
+
+packages "krunner-bazaar" enablerepo="ublue-os/packages"

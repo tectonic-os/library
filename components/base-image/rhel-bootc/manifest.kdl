@@ -1,0 +1,29 @@
+schema-version 1
+
+// Pulling the base needs `podman login registry.redhat.io` with a Red Hat
+// account. Remediation needs the host's entitlement certificates.
+
+description "A RHEL bootc image"
+
+provides {
+    "rechunking"
+    "initramfs-generation" witness="/usr/bin/dracut"
+    "selinux-policy" witness="/usr/sbin/semodule"
+    "ssh" witness="/usr/sbin/sshd"
+    "bootc" witness="/usr/bin/bootc"
+    "bootupctl" witness="/usr/bin/bootupctl"
+    "podman" witness="/usr/bin/podman"
+    "crun" witness="/usr/bin/crun"
+}
+
+imports "fedora/build-environment" "package-manager/dnf4" "identity"
+
+base "registry.redhat.io/rhel10/rhel-bootc:$version" {
+    family "rhel"
+    bootloader "grub2"
+    scap-content "ssg-rhel10-ds.xml"
+}
+
+option "version" type="string" {
+    default "latest"
+}

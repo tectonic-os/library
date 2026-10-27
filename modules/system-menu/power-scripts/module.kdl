@@ -1,9 +1,0 @@
-schema-version 1
-
-description "Power and battery recipes for the goojust menu, which they prompt through"
-
-supports "fedora"
-
-requires "goojust"
-
-contributes "justfile.inc" priority=900

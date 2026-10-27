@@ -1,0 +1,3 @@
+# Fedora's `90-default.preset` also enables `sshd.service`. This line keeps
+# it enabled if that default changes.
+enable sshd.service

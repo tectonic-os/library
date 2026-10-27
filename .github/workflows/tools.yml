@@ -1,16 +1,15 @@
 name: Publish the deb build tools
 
-# Maintainers publish bootc and bootupd once per family and source-pin pair so
-# image builds can reuse verified binaries. They record each release hash in
-# the module manifest after this workflow finishes. Users get a source build
-# until maintainers record that hash.
+# This publishes bootc and bootupd once for each family and pin pair, so an
+# image build can fetch the binaries. `deb/bootc-base` compiles them from
+# source until a maintainer records the release hash in its manifest.
 on:
   push:
     branches:
       - main
     paths:
-      - modules/deb/bootc-base/module.kdl
-      - modules/deb/bootc-base/build-tools.sh
+      - components/deb/bootc-base/manifest.kdl
+      - components/deb/bootc-base/build-tools.sh
       - .github/pins.py
       - .github/workflows/tools.yml
   workflow_dispatch:
@@ -24,7 +23,7 @@ jobs:
     runs-on: ubuntu-26.04
     permissions:
       contents: write
-      # Maintainers use GitHub provenance to bind each tarball to its workflow run.
+      # The provenance attestation binds each tarball to its workflow run.
       id-token: write
       attestations: write
     strategy:
@@ -38,13 +37,13 @@ jobs:
     env:
       FAMILY: ${{ matrix.family }}
       BASE: ${{ matrix.base }}
-      MODULE: modules/deb/bootc-base
+      COMPONENT: components/deb/bootc-base
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0
 
-      # Maintainers reuse the released fetch helper so CI and image builds apply
-      # the same source checks.
+      # The released fetch helper applies the same source checks as an image
+      # build.
       - name: Take the released tool's build helpers
         env:
           GH_TOKEN: ${{ github.token }}
@@ -59,13 +58,13 @@ jobs:
           tar -xzf "$dir"/*.tar.gz -C "$dir"
           mkdir -p "${RUNNER_TEMP}/ctx/lib"
           cp "$dir"/assets/lib/*.sh "${RUNNER_TEMP}/ctx/lib/"
-          cp modules/deb/build-environment/lib/family.sh "${RUNNER_TEMP}/ctx/lib/"
+          cp components/deb/build-environment/lib/family.sh "${RUNNER_TEMP}/ctx/lib/"
 
-      - name: Read the module's pins
+      - name: Read the component's pins
         run: |
           set -euo pipefail
-          python3 .github/pins.py "$MODULE" > "${RUNNER_TEMP}/pins.env"
-          # Maintainers exclude output pins to keep a release from naming itself.
+          python3 .github/pins.py "$COMPONENT" > "${RUNNER_TEMP}/pins.env"
+          # The `bootc-tools-*` pins record this release, so the build omits them.
           grep -v '^ASSET_BOOTC_TOOLS_' "${RUNNER_TEMP}/pins.env" > "${RUNNER_TEMP}/build.env"
           # shellcheck disable=SC1091
           . "${RUNNER_TEMP}/build.env"
@@ -76,7 +75,8 @@ jobs:
             echo "TARBALL=deb-bootc-tools-${FAMILY}-${version}.tar.zst"
           } >> "$GITHUB_ENV"
 
-      # Maintainers keep a published asset immutable after recording its hash.
+      # A published tarball is never replaced, because a manifest records its
+      # hash.
       - name: Check whether this family is already published
         env:
           GH_TOKEN: ${{ github.token }}
@@ -90,8 +90,8 @@ jobs:
               echo "PUBLISH=true" >> "$GITHUB_ENV"
           fi
 
-      # Maintainers create the tarball inside the container so it records root
-      # ownership instead of the runner UID that rootless Podman maps.
+      # The tarball is made inside the container, so it records root as the
+      # owner. Rootless podman maps root to the runner UID outside it.
       - name: Compile bootc and bootupd on this family's base
         if: env.PUBLISH == 'true'
         run: |
@@ -103,18 +103,18 @@ jobs:
             -v "${RUNNER_TEMP}/out:/out" \
             --env-file "${RUNNER_TEMP}/build.env" \
             -e "TARBALL=${TARBALL}" \
-            -e "MODULE=${MODULE}" \
+            -e "COMPONENT=${COMPONENT}" \
             "$BASE" bash -euxo pipefail -c '
-              # Maintainers reuse the module build environment and its archive policy.
+              # The build environment sets the archive policy of an image build.
               source /ctx/lib/family.sh
-              bash /src/modules/deb/build-environment/module.sh
-              # Maintainers install compile inputs without adding image runtime packages.
+              bash /src/components/deb/build-environment/component.sh
+              # curl and ca-certificates fetch the pinned sources. zstd packs the tarball.
               install_packages curl ca-certificates zstd
-              DESTDIR=/stage bash "/src/${MODULE}/build-tools.sh"
+              DESTDIR=/stage bash "/src/${COMPONENT}/build-tools.sh"
               tar --use-compress-program="zstd -19 -T0" -C /stage -cf "/out/${TARBALL}" .
             '
 
-      # Maintainers attest each tarball before upload so users can verify its origin.
+      # The attestation lets the user verify where the tarball was built.
       - name: Attest the tarball
         if: env.PUBLISH == 'true'
         uses: actions/attest-build-provenance@bd77c077858b8d561b7a36cbe48ef4cc642ca39d
@@ -128,10 +128,9 @@ jobs:
         run: |
           set -euo pipefail
           cd "${RUNNER_TEMP}/out"
-          # Maintainers accept the release-creation race because both jobs upload
-          # their family tarball to the same tag.
+          # Both family jobs create the same tag, so the later create fails.
           gh release create "$TAG" --title "$TAG" --notes \
             "The bootc and bootupd trees \`deb/bootc-base\` installs, compiled from its pins." \
             || true
           gh release upload "$TAG" "$TARBALL"
-          echo "::notice::${MODULE}/module.kdl: bootc-tools-${FAMILY} is version \"${VERSION}\" sha256 \"$(sha256sum "$TARBALL" | cut -d' ' -f1)\""
+          echo "::notice::${COMPONENT}/manifest.kdl: bootc-tools-${FAMILY} is version \"${VERSION}\" sha256 \"$(sha256sum "$TARBALL" | cut -d' ' -f1)\""

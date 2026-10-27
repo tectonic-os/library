@@ -1,0 +1,7 @@
+schema-version 1
+
+description "Bitwarden password manager"
+
+targets "fedora" "debian" "ubuntu"
+
+requires "flatpak" "graphical-session"

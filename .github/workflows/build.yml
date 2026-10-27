@@ -13,55 +13,34 @@ on:
     - cron: '30 4 * * 1'
   workflow_dispatch:
 
-# Every leg scaffolds a repository with the released tool and imports out of
-# this checkout, so what an importer gets is what is tested: `create repo`,
-# `import module` and the lint every repository runs are covered beside the
-# modules themselves. The legs differ only in which modules they import.
+# Every leg scaffolds a repository with the released tool and imports from
+# this checkout, so CI tests what an importer gets. The legs differ in the
+# components they import.
 #
-#   collection  every module claiming the family. A smoke test for the
-#               scaffold-import-lint-build path, and not a compatibility proof:
-#               collect order is declared, so two modules writing one path do
-#               not collide, the later silently wins, and the build cannot fail
-#               on overlap. The overlap is reported instead.
-#   bootc-base  the `deb` set alone, closed over `requires`, on a
-#               Debian or Ubuntu container image rather than a bootc one. The
-#               set that turns the first into the second, built on its own so a
-#               failure in it is not read as a failure of the content above it.
+#   collection  every component that targets the family.
+#   bootc-base  the `deb/` or `rhel/` set, closed over `requires`, on a plain
+#               container image. It builds alone, so its failure is not read
+#               as a failure of the components above it.
+#   hardening   the hardening set, where claims are measured. It has its own
+#               image, so a failed claim does not fail the collection leg.
+#   changed     the components this event touched, closed over `requires`.
+#               It is generated for each family and never built. A widened
+#               component can meet its `requires` on one family only.
+#   packages    each package list that a deb family declares, resolved by
+#               apt. It finds a package name that does not exist, or a set
+#               that apt cannot satisfy. `tect check` cannot see either.
 #
-# There is no leg on a published deb bootc base. Every one of those ships an
-# empty dpkg database, so an image built on one reports its whole base as
-# carrying no packages and therefore no CVEs, which is the one answer this
-# project exists not to give. The collection builds its own.
-#   hardening   the hardening set alone, where claims are measured. Its own
-#               image so a failing claim and the set's own composition stay out
-#               of the leg that gates every other module.
-#   changed     what this event touched, closed over `requires`, scaffolded and
-#               generated but never built. A diff is not importable on its own:
-#               a module whose requirement nothing in the image provides is an
-#               unmet-requires error, so the closure is walked from the
-#               providers rather than filtered from the diff, and its
-#               alternatives are split into separate images as the collection
-#               leg splits them. One per family, because a widened module's
-#               `requires` and `after` can be satisfiable on one family and
-#               dangling on another, and building nothing makes three of them
-#               cheap.
-#   packages    every `packages` batch a family declares, resolved by apt in a
-#               container of that family and nothing else. It builds no image,
-#               so it costs seconds, and it fails on the one defect a widened
-#               module can introduce that `tect check` cannot see: a package
-#               name that does not exist, or a set apt cannot satisfy.
+# No leg builds on a published deb bootc base. Each one ships an empty dpkg
+# database, so a scan of an image built on it finds no packages and no CVEs.
+#
 # Each job grants itself what it needs.
 permissions:
   contents: read
 
 jobs:
-  # The two deb `collection` legs carry the largest module set and are the
-  # queue's bottleneck, which is why `NEXT-42` parked the Debian one. They are
-  # not dropped, they are moved off the pull request: a push to `main` and the
-  # weekly schedule run them, and a pull request gets `packages` instead, which
-  # resolves every declared name on both families in seconds. So the defect a
-  # module edit can actually introduce is caught before merge, and the full
-  # build still gates `main`.
+  # A pull request skips the two deb `collection` legs, because they build the
+  # largest component sets. The `packages` job still resolves each deb
+  # package list.
   legs:
     name: Choose the legs for this event
     runs-on: ubuntu-26.04
@@ -93,11 +72,9 @@ jobs:
             printf 'include=%s\n' "$(jq -c -s add <<< "${always}${deb}")" >> "$GITHUB_OUTPUT"
           fi
 
-  # Every leg lints the repository it scaffolds. That lint reads only the
-  # modules the leg imports, so this job lints the whole collection's shell.
-  # `.shellcheckrc` disables the checks that a consumer repository disables.
-  # A local `shellcheck` then agrees with this job. `ruff.toml` holds the rule
-  # set, so a local `ruff check` agrees with it too.
+  # A leg lints only the components it imports, so this job lints the whole
+  # collection. `.shellcheckrc` and `ruff.toml` hold the rule sets, so a local
+  # run agrees with this job.
   lint:
     name: Lint the collection's shell and Python
     runs-on: ubuntu-26.04
@@ -121,16 +98,15 @@ jobs:
       - name: Lint
         run: |
           set -euo pipefail
-          # A helper below is left to the shell it names, so it is not a script here too.
-          mapfile -t scripts < <(find . -path ./.git -prune -o -name '*.sh' -type f \
+          # A helper that a component ships to the machine names its own shell,
+          # so shellcheck lints it without `-s bash`.
+          mapfile -t scripts < <(find . -path ./.git -prune -o -name '*.sh' ! -name repo.sh -type f \
             ! \( -path '*/files/*' \( -path '*/libexec/*' -o -path '*/system-generators/*' \) \) -print)
-          mapfile -t repos < <(find . -path ./.git -prune -o -name repo -type f -print)
-          # What a module ships to run on the machine, and each names its shell.
+          mapfile -t repos < <(find . -path ./.git -prune -o -name repo.sh -type f -print)
           mapfile -t helpers < <(find . -path ./.git -prune -o -path '*/files/*' -type f \
             \( -path '*/libexec/*' -o -path '*/system-generators/*' \) -print)
           shellcheck -s bash "${scripts[@]}"
-          # `REPO_ID` is a `repo` file's interface: the helper and the emitter
-          # read it, and shellcheck sees neither.
+          # The tool reads the `REPO_ID` that a `repo.sh` sets, so SC2034 is off.
           shellcheck -s bash -e SC2034 "${repos[@]}"
           shellcheck "${helpers[@]}"
           shfmt -i 4 -ci -bn -sr -d "${scripts[@]}" "${repos[@]}" "${helpers[@]}"
@@ -150,19 +126,19 @@ jobs:
       - name: Lint Python
         run: ruff check
 
-      # A fork's pull request runs its module scripts in these workflows. So a
-      # workflow a pull request starts names no secret and grants no write.
-      # No workflow runs on `pull_request_target`, `workflow_run` or
-      # `issue_comment`, which run with the base token on a fork's behalf.
+      # A fork's pull request runs its component scripts in these workflows,
+      # so a workflow that a pull request starts names no secret and grants no
+      # write. `pull_request_target`, `workflow_run` and `issue_comment` run
+      # with the base token, so no workflow uses them.
       - name: Check that a pull request runs with no secret and a read-only token
         run: |
           set -euo pipefail
           shopt -s nullglob
-          # The bracketed patterns keep this step from matching its own text,
-          # and -H keeps the file name the comment filter reads.
+          # The bracketed patterns keep this step from matching its own text.
+          # -H keeps the file name the comment filter reads.
           all=(.github/workflows/*.yml .github/workflows/*.yaml)
           mapfile -t started < <(grep -l 'pull_request' "${all[@]}")
-          # A grep that finds nothing exits 1, and finding nothing is the pass.
+          # Here no match is the pass, so each grep may exit 1.
           found="$({
             grep -HnE 'pull_request[_]target|workflow[_]run|issue[_]comment' "${all[@]}" || true
             grep -HnE '\bsecret[s]\b|:[[:space:]]*["'"'"']?write' "${started[@]}" || true
@@ -183,11 +159,10 @@ jobs:
         run: |
           set -euo pipefail
           python3 -m unittest discover -s .github
-          find . -path ./.git -prune -o -name module.kdl -print0 | xargs -0 python3 .github/hashed.py
+          find . -path ./.git -prune -o -name manifest.kdl -print0 | xargs -0 python3 .github/hashed.py
 
-  # Deliberately not an `image` in the matrix below: it shares none of that
-  # job's steps — no tool, no scaffold, no import, no build — so threading it
-  # through them would mean a condition on every one of them.
+  # This job shares no step with the `collection` matrix, so it is a job of
+  # its own.
   packages:
     name: package lists ${{ matrix.family }}
     runs-on: ubuntu-26.04
@@ -205,11 +180,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # One `apt-get update` and then one `--dry-run` per module, rather than
-      # one over the union: a union says only that something in the collection
-      # does not resolve, and the point of the job is to name the module that
-      # wrote the line. `--dry-run` resolves dependencies as well as names, so
-      # a set apt cannot satisfy fails here too.
+      # Each component gets its own `--dry-run`, so a failure names the
+      # component. `--dry-run` resolves dependencies too, so a set that apt
+      # cannot satisfy also fails.
       - name: Resolve every package this family declares
         env:
           FAMILY: ${{ matrix.family }}
@@ -218,29 +191,24 @@ jobs:
           set -euo pipefail
           python3 .github/packages.py "$FAMILY" > lists.txt
           python3 .github/packages.py "$FAMILY" --repos > repos.txt
-          echo "::notice::$(wc -l < lists.txt) modules declare packages for ${FAMILY}, $(wc -l < repos.txt) of them out of an archive of their own"
+          echo "::notice::$(wc -l < lists.txt) components declare packages for ${FAMILY}, $(wc -l < repos.txt) of them out of an archive of their own"
           sudo podman run --rm -i -v "${PWD}:/src:ro" "$BASE" \
             bash -euc '
               export DEBIAN_FRONTEND=noninteractive
               apt-get update -qq
-              # A module out of a third-party archive cannot be resolved on a
-              # base that has never heard of it, and skipping those would
-              # leave the widenings most likely to break as the ones nothing
-              # measures. So every archive goes in first, exactly as the
-              # module writes it, and then one update covers all of them. The
-              # family helpers are placed where a module layer mounts them
-              # rather than sourced from the checkout, so a `repo` file runs
-              # here exactly as it is written for the build.
+              # A package from a third-party archive resolves only after its
+              # repo.sh adds the archive. The family helper sits where a
+              # component layer mounts it, so each repo.sh runs as written.
               mkdir -p /ctx/lib
-              cp /src/modules/deb/build-environment/lib/family.sh /ctx/lib/
+              cp /src/components/deb/build-environment/lib/family.sh /ctx/lib/
               while read -r repo; do source "/src/$repo"; done < /src/repos.txt
               if [ -s /src/repos.txt ]; then apt-get update -qq; fi
               rc=0
-              while read -r module packages; do
+              while read -r component packages; do
                 if apt-get install --dry-run -qq $packages > /dev/null 2>&1; then
-                  printf "ok   %s\n" "$module"
+                  printf "ok   %s\n" "$component"
                 else
-                  printf "FAIL %s\n" "$module"
+                  printf "FAIL %s\n" "$component"
                   apt-get install --dry-run $packages 2>&1 | grep -E "^E:" | head -3
                   rc=1
                 fi
@@ -250,10 +218,8 @@ jobs:
 
   collection:
     name: ${{ matrix.image }} ${{ matrix.family }}
-    # The two jobs that fail in a minute gate the ones that fail in thirty: a
-    # bad package name or an unformatted script starts no build. The builds do
-    # not gate each other, and `fail-fast` stays off, so a registry flake on
-    # one leg costs that leg alone.
+    # The fast `lint` and `packages` jobs gate the builds. `fail-fast` is off,
+    # so a registry flake fails one leg alone.
     needs: [legs, lint, packages]
     runs-on: ubuntu-26.04
     permissions:
@@ -266,24 +232,18 @@ jobs:
       IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
       IMAGE: ${{ matrix.image }}
       FAMILY: ${{ matrix.family }}
-      # goojust pins an asset on a repository that does not resolve yet, and
-      # system-menu/power-scripts requires it. UKI modules require an image-level
-      # boot declaration and are covered by their generated consumer build.
+      # goojust pins an asset on a repository that does not resolve.
+      # power-scripts requires goojust. The UKI components need an
+      # image-level boot declaration. Their generated consumer build covers
+      # them.
       SKIP: system-menu/goojust system-menu/power-scripts boot/uki boot/secureboot-enrolment
-      # The walk under `hardening/` finds every hardening mechanism.
-      # `signature-policy` is added by name because it is not one: the
-      # published hardening image needs the module declaring the cosign
-      # public key.
+      # `signature-policy` sits outside `hardening/`. The hardening image needs
+      # it for the cosign public key.
       HARDENING: updates/signature-policy
-      # The profile the hardening image is measured by, on CentOS Stream 10.
       CONFORMS: cis_server_l1
-      # The floor is a booted machine's count, which reads the image's own
-      # kernel, and moves only by editing this line. `--baseline` is
-      # the other half and a different instrument: it holds the rules and
-      # drifts to the last run, so it sees a single rule lost between two runs
-      # that both meet this number. Failures rather than passes, because a
-      # rule the content stops selecting drops both counts and only one of
-      # them is a regression.
+      # This is the most profile rules the booted hardening machine may fail.
+      # The floor counts failures, so a rule the content stops selecting
+      # cannot fail the leg.
       MAX_FAILS: "7"
     steps:
       - name: Checkout
@@ -304,36 +264,26 @@ jobs:
 
       - name: Maximize build space
         run: |
-          # the whole collection is a far larger image than any module suggests
+          # The whole collection is a far larger image than any component suggests.
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
             /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/share/swift \
             /usr/local/share/powershell /usr/local/share/chromium
           df -h /
 
-      # The runner hands root podman a fuse-overlayfs mount program, which
-      # turns off the native overlay diff, so every layer commit walks the
-      # whole rootfs: about two minutes a layer whatever the layer holds.
-      # Written before anything pulls, so the store is created under the
-      # driver it keeps and nothing has to be reset.
+      # The runner gives root podman a fuse-overlayfs mount program. That
+      # disables the native overlay diff, so each layer commit walks the whole
+      # rootfs. This step runs before any pull, so resetting the store is free.
       - name: Settle the container storage driver
         run: |
           sudo mkdir -p /etc/containers
-          # skopeo reads this file too and, unlike podman, defaults neither
-          # path: `containers-storage:` refuses with `runroot must be set`.
+          # skopeo also reads this file and has no default for either path.
           printf '[storage]\ndriver = "overlay"\nrunroot = "/run/containers/storage"\ngraphroot = "/var/lib/containers/storage"\n' \
             | sudo tee /etc/containers/storage.conf > /dev/null
-          # The config alone changes nothing: the store the runner ships was
-          # created with the mount program and keeps the naive diff until it is
-          # thrown away. Nothing has pulled yet, so this costs nothing.
+          # The runner's store keeps the mount program until it is reset.
           sudo podman system reset --force > /dev/null 2>&1 || true
-          # And the reset is not enough on a runner whose store was made before
-          # that file existed: its database records an empty graph driver, the
-          # reset fails on the inconsistency, `|| true` swallows it, and the
-          # next command refuses with `database graph driver "" does not match
-          # our graph driver "overlay"`. Measured on four of six legs in one
-          # run, moving between legs run to run. Nothing has pulled yet, so
-          # removing the store outright costs nothing and leaves no database to
-          # disagree with the config.
+          # The reset fails on a store whose database records an empty graph
+          # driver. Removing the store leaves no database to disagree with the
+          # config.
           sudo rm -rf /var/lib/containers/storage /run/containers/storage
           sudo podman info --format 'storage: {{.Store.GraphDriverName}} {{.Store.GraphOptions}}'
 
@@ -356,67 +306,60 @@ jobs:
             echo "TECT_ASSETS=${dir}/assets"
           } >> "${GITHUB_ENV}"
 
-      # `find -mindepth 2` rather than `for dir in */`, so a member grouped in a
-      # directory is a member. An empty set is a legitimate answer for the
-      # changed leg and scaffolds an image listing nothing.
-      - name: Choose this leg's modules
+      # `find` walks into group directories, so it finds a grouped component.
+      # An empty list is valid for the changed leg.
+      - name: Choose this leg's components
         env:
           FROM: ${{ github.event.pull_request.base.sha }}
           BASE: ${{ matrix.base }}
         run: |
           set -euo pipefail
           case "$IMAGE" in
-            # Modules providing one capability are alternatives and one image
-            # holds one of each, so the rest go into `$NAMES.1` onwards, each
-            # its own image in this repository and closed over its requires.
+            # `$NAMES` holds one provider of each capability. The alternative
+            # providers go into `$NAMES.1` onwards, one image each.
             collection)
-              mapfile -t all < <(find modules -mindepth 2 -name module.kdl -not -path '*/.*' \
-                -printf '%h\n' | sed 's|^modules/||' | sort)
+              # A base is the image's `base` entry, so no leg lists one.
+              mapfile -t all < <(find components -mindepth 2 -name manifest.kdl -not -path '*/.*' \
+                -not -path 'components/base-image/*' -printf '%h\n' | sed 's|^components/||' | sort)
               python3 .github/closure.py --split "$FAMILY" "$BASE" "${all[@]}" \
                 | awk -v n="$NAMES" '{ print $2 > ($1 == 0 ? n : n "." $1) }'
               for alt in "${NAMES}".[0-9]*; do
                 [ -e "$alt" ] || continue
-                echo "::notice::$(wc -l < "$alt") modules in ${IMAGE}-${alt##*.}"
+                echo "::notice::$(wc -l < "$alt") components in ${IMAGE}-${alt##*.}"
                 cat "$alt"
               done
               ;;
             bootc-base)
-              # One family set turns a plain container image into a bootc one,
-              # and which directory holds it is the family's answer.
               dir=deb
               [ "$FAMILY" = rhel ] && dir=rhel
-              find "modules/$dir" -mindepth 2 -name module.kdl -printf '%h\n' \
-                | sed 's|^modules/||' | sort -u \
+              find "components/$dir" -mindepth 2 -name manifest.kdl -printf '%h\n' \
+                | sed 's|^components/||' | sort -u \
                 | xargs -r python3 .github/closure.py "$FAMILY" "$BASE" > "$NAMES"
               ;;
             hardening)
-              # A module that does not support `rhel` is skipped at import,
-              # which is how `hardened-malloc` and its Fedora COPR leave this leg.
+              # A component that does not target `rhel`, such as
+              # `hardened-malloc`, drops out of this leg.
               {
                 printf '%s\n' $HARDENING
-                find modules/hardening -mindepth 2 -name module.kdl -printf '%h\n' \
-                  | sed 's|^modules/||'
+                find components/hardening -mindepth 2 -name manifest.kdl -printf '%h\n' \
+                  | sed 's|^components/||'
               } | sort -u \
                 | xargs -r python3 .github/closure.py "$FAMILY" "$BASE" > "$NAMES"
               ;;
-            # `xargs` without `-r`, so the closure runs on an empty set too:
-            # a commit touching no module still scaffolds an image, and what
-            # the base seeds into it has requirements of its own. With `-r` the
-            # closure never ran and the leg scaffolded a `bootc-base` with
-            # nothing providing `container-runtime` — measured 2026-09-05.
+            # `xargs` runs without `-r`, so closure.py also runs on an empty
+            # list. An image that lists no component still needs the closure
+            # of what the base seeds into it.
             changed)
               from="${FROM:-$(git rev-parse -q --verify HEAD^ || true)}"
               : > "$NAMES"
               if [ -n "$from" ]; then
-                # A diff that touches two providers of one capability, or the
-                # whole collection at once, is closed and then split the way the
-                # collection leg splits; one image would enable both providers
-                # and `generate` would refuse it.
+                # `generate` refuses an image with two providers of one
+                # capability, so the closure is split like the collection leg.
                 git diff --name-only "$from" HEAD | while read -r file; do
                   dir="$(dirname "$file")"
                   while [ "$dir" != "." ]; do
-                    if [ -f "${dir}/module.kdl" ]; then
-                      echo "${dir#modules/}"
+                    if [ -f "${dir}/manifest.kdl" ]; then
+                      echo "${dir#components/}"
                       break
                     fi
                     dir="$(dirname "$dir")"
@@ -428,31 +371,29 @@ jobs:
               fi
               ;;
           esac
-          echo "::notice::$(wc -l < "$NAMES") modules in the ${IMAGE} leg"
+          echo "::notice::$(wc -l < "$NAMES") components in the ${IMAGE} leg"
           cat "$NAMES"
 
-      # Every claim in the collection has to sit on a module this leg imports,
-      # or the assertion below measures a set that does not contain it.
+      # A claim on a component that this leg does not import is never measured.
       - name: Refuse a claim outside the hardening set
         if: matrix.image == 'hardening'
         run: |
           set -euo pipefail
-          # `-E '^[[:space:]]*satisfies'`, not `'^satisfies'`: a claim inside a
-          # `family` gate is indented, and the anchored pattern stopped seeing
-          # every one of them the day the hardening claims were gated.
-          claiming="$(grep -rlE '^[[:space:]]*satisfies' --include=module.kdl modules \
-            | sed 's|^modules/||;s|/module\.kdl$||' | sort)"
+          # A claim inside an `on` gate is indented.
+          claiming="$(grep -rlE '^[[:space:]]*satisfies' --include=manifest.kdl components \
+            | sed 's|^components/||;s|/manifest\.kdl$||' | sort)"
           stray="$(comm -23 <(printf '%s\n' "$claiming") <(sort "$NAMES") || true)"
-          # The leg imports only what supports rhel, so a claiming module
-          # without it is listed and never measured.
+          # The leg imports only the components that target rhel. A component
+          # with no `targets` targets every family.
           for name in $claiming; do
-            if ! grep -qE '^supports .*"rhel"' "modules/${name}/module.kdl"; then
+            manifest="components/${name}/manifest.kdl"
+            if grep -q '^targets ' "$manifest" && ! grep -qE '^targets .*"rhel"' "$manifest"; then
               stray="${stray:+${stray}$'\n'}${name}"
             fi
           done
           if [ -n "$stray" ]; then
             printf '%s\n' "$stray"
-            echo '::error::a module declares `satisfies` and no leg measures it'
+            echo '::error::a component declares `satisfies` and no leg measures it'
             exit 1
           fi
 
@@ -464,17 +405,14 @@ jobs:
           shopt -s nullglob
           "$TECT_BIN" create repo "$IMAGE" --root "$ROOT" --no-tui \
             --owner tectonic-os --host github.com
-          # Import this checkout through the same typed declarations a user
-          # writes, rather than fetching the published collection.
+          # The `sources` block names this checkout the way a user's repository
+          # names a collection.
           awk -v root="$GITHUB_WORKSPACE" '
             $0 == "sources {" {
               replaced++
               print "sources {"
-              print "    modules \"tectonic-modules\" {"
-              print "        dir \"" root "/modules\""
-              print "    }"
-              print "    base-images \"core\" {"
-              print "        dir \"" root "/base-images/core\""
+              print "    components \"tectonic-components\" {"
+              print "        dir \"" root "/components\""
               print "    }"
               print "}"
               replacing = 1
@@ -486,10 +424,8 @@ jobs:
           ' "${ROOT}/repo.kdl" > "${ROOT}/repo.kdl.new"
           mv "${ROOT}/repo.kdl.new" "${ROOT}/repo.kdl"
           for declaration in \
-            '    modules "tectonic-modules" {' \
-            '    base-images "core" {' \
-            "        dir \"${GITHUB_WORKSPACE}/modules\"" \
-            "        dir \"${GITHUB_WORKSPACE}/base-images/core\""; do
+            '    components "tectonic-components" {' \
+            "        dir \"${GITHUB_WORKSPACE}/components\""; do
             if [ "$(grep -Fxc "$declaration" "${ROOT}/repo.kdl" || true)" != 1 ]; then
               echo "::error::repo.kdl does not carry exactly one ${declaration}"
               exit 1
@@ -501,29 +437,24 @@ jobs:
           fi
           "$TECT_BIN" create image "$IMAGE" --root "$ROOT" --no-tui \
             --owner tectonic-os --base "$BASE"
-          # The collection holds every module to the network it declares.
+          # The strict policy holds each component to the network it declares.
           printf 'security-policy {\n    network "strict"\n}\n' >> "${ROOT}/repo.kdl"
           alts=("${NAMES}".[0-9]*)
           for alt in "${alts[@]}"; do
             "$TECT_BIN" create image "${IMAGE}-${alt##*.}" --root "$ROOT" --no-tui \
               --owner tectonic-os --base "$BASE"
           done
-          # The image file is the interface for a `conforms`, and here it is the
-          # only one: `set conforms` is a picker and `--no-tui` refuses to ask
-          # rather than reading an answer, which is what the tool's own
-          # diagnostic says to do instead. The schema puts it in front of
-          # `base`, so the splice is one substitution only while the scaffold
-          # holds one image. Both counts are checked rather than presence
-          # alone: the sed is global, so a second image would take a `conforms`
-          # nothing measured it against and the file would still grep clean.
+          # `set conforms` needs the TUI, so this writes `conforms` into the
+          # image file. The sed is global, so both counts are checked. A
+          # second `base-image` block would otherwise take a `conforms` too.
           if [ "$IMAGE" = hardening ]; then
             image="${ROOT}/${IMAGE}.image.kdl"
-            bases="$(grep -c '^    base "' "$image" || true)"
+            bases="$(grep -c '^    base-image {' "$image" || true)"
             if [ "$bases" != 1 ]; then
               echo "::error::${image} declares ${bases} images; the conforms splice writes one"
               exit 1
             fi
-            sed -i "s|^    base \"|    conforms \"${CONFORMS}\"\n\n    base \"|" \
+            sed -i "s|^    base-image {|    conforms \"${CONFORMS}\"\n\n    base-image {|" \
               "$image"
             wrote="$(grep -cx "    conforms \"${CONFORMS}\"" "$image" || true)"
             if [ "$wrote" != 1 ]; then
@@ -531,23 +462,45 @@ jobs:
               exit 1
             fi
           fi
-          # A key is the repository's, so a module in two images makes one.
+          # This prints each component path that an image file lists. The tool
+          # writes one path segment a line, indented four spaces a level. A
+          # `flavour` block adds no segment. `tect plan` refuses while an
+          # import is still owed, so it cannot answer here.
+          listed() {
+            awk '
+              /^image \{/ { inside = 1; next }
+              inside && /^\}/ { inside = 0; next }
+              inside && $1 != "}" && ($1 == "flavour" || NF == 1 || $2 == "{" || $2 ~ /^variant=/) {
+                match($0, /^ */)
+                depth = RLENGTH / 4
+                stack[depth] = ($1 == "flavour") ? "" : $1
+                if ($1 == "flavour") next
+                path = ""
+                for (i = 1; i <= depth; i++) {
+                  if (stack[i] != "") path = (path == "" ? stack[i] : path "/" stack[i])
+                }
+                print path
+              }
+            ' "$1"
+          }
+          # A key belongs to the repository, so a component in two images
+          # creates its key once.
           declare -A keyed=()
           import_into() {
           local image="$1" name
           while read -r name; do
             case " $SKIP " in *" $name "*) continue ;; esac
-            grep -q "^supports .*\"${FAMILY}\"" "modules/${name}/module.kdl" || continue
-            # `create image` seeds whatever the base `requires` — since
-            # v0.6.21 it names the modules that provide the capability and
-            # writes them in — so a name can already be listed before this
-            # loop reaches it, and importing it twice is an error. Checked
-            # against the file rather than against a list of known seeds,
-            # because that set grows with the catalog.
-            if grep -q "module \"${name}\"" "${ROOT}/${image}.image.kdl"; then
+            manifest="components/${name}/manifest.kdl"
+            if grep -q '^targets ' "$manifest" \
+              && ! grep -q "^targets .*\"${FAMILY}\"" "$manifest"; then
               continue
             fi
-            "$TECT_BIN" import module "tectonic-modules/${name}" --root "$ROOT" \
+            # `create image` already lists the providers of what the base
+            # requires. A second import of a component is an error.
+            if listed "${ROOT}/${image}.image.kdl" | grep -qxF "$name"; then
+              continue
+            fi
+            "$TECT_BIN" import component "tectonic-components/${name}" --root "$ROOT" \
               --image "$image" --no-tui
             [ -z "${keyed[$name]:-}" ] || continue
             keyed[$name]=1
@@ -556,10 +509,8 @@ jobs:
                 "$TECT_BIN" create key secureboot --root "$ROOT" --no-tui \
                   --cn "Collection CI"
                 ;;
-              # Declared by the module rather than by this workflow: an ssh
-              # key with no public half is a refusal at `generate`, which is
-              # what a repository holding it would hit too. The private half
-              # stays on the runner and dies with it.
+              # `generate` refuses the ssh key that login-access declares
+              # until the key has its public half.
               login-access)
                 "$TECT_BIN" create key ssh --root "$ROOT" --no-tui
                 ;;
@@ -590,51 +541,45 @@ jobs:
           shopt -s nullglob
           mapfile -t names < <(sort -u "$NAMES" "${NAMES}".[0-9]*)
           if [ "${#names[@]}" -eq 0 ]; then
-            echo "no modules in this leg"
+            echo "no components in this leg"
             exit 0
           fi
-          mapfile -t rooted < <(printf 'modules/%s\n' "${names[@]}")
+          mapfile -t rooted < <(printf 'components/%s\n' "${names[@]}")
           mapfile -t dirs < <(find "${rooted[@]}" -name 'test_*.py' -type f \
             -exec dirname {} \; | sort -u)
           for dir in ${dirs[@]+"${dirs[@]}"}; do
             python3 -m unittest discover -s "$dir" -v
           done
 
-      # Overlap is the discovery, never the exit code. Collect order is
-      # declared, so a shared path is resolved rather than a collision: this
-      # build is green either way and would be green on two modules setting
-      # opposite values in one file, which it cannot see at all.
-      - name: Report where modules overlap
+      # Collect order is declared, so a later component wins a shared path.
+      # This report never fails the build. It cannot see two components that
+      # set opposite values in one file.
+      - name: Report where components overlap
         if: matrix.image == 'collection'
         run: |
           set -euo pipefail
           rows="$(jq -r '
             .images[].targets[]
             | (.overlay_overridden[]
-               | "- `\(.path)`: `\(.module)` ships it, `\(.by)` wins"),
-              (.modules
+               | "- `\(.path)`: `\(.component)` ships it, `\(.by)` wins"),
+              (.components
                | map(.provides[] as $c | {c: $c, m: .path})
                | group_by(.c)[] | select(length > 1)
                | "- `\(.[0].c)`: \(map("`\(.m)`") | join(", "))")
           ' "${ROOT}/generated/plan.json")"
           {
-            echo "## Where ${FAMILY} modules overlap"
+            echo "## Where ${FAMILY} components overlap"
             echo
-            echo "What one module ships and another replaces, and what two of"
+            echo "What one component ships and another replaces, and what two of"
             echo "them provide. Read it; it is not a failure."
             echo
             printf '%s\n' "${rows:-None.}"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      # A pull request builds fedora alone, plus `bootc-base`: it is the only
-      # leg that compiles a base rather than deriving from one, and its failure
-      # modes — the bootc compile, dracut, what is actually inside the
-      # initramfs — are all invisible to `generate` and lint, so a pull request
-      # that skipped it would not exercise that content at all. It costs a
-      # Rust build on every PR; drop the third clause to take that back.
-      # The changed leg proves the import and never builds. The hardening steps
-      # boot, scan and report on the built image, so each one also asks that
-      # this step ran.
+      # A pull request builds the fedora collection and each `bootc-base` leg.
+      # The bootc compile, dracut and the initramfs fail only in a build, so
+      # `generate` and lint cannot catch them. The hardening steps need the
+      # built image, so each one checks that this step ran.
       - name: Build
         id: build
         if: >-
@@ -643,22 +588,17 @@ jobs:
               || github.event_name != 'pull_request')
         run: |
           set -euo pipefail
-          # Root, because the scan below is `sudo podman run` against the root
-          # store: buildah builds straight into it, so there is no archive to
-          # export and load.
-          # The Containerfile the build is about to run, in a fold. A build
-          # that fails inside buildah reports the step it died on and never
-          # the file, and a step that reads correctly can still have been
-          # parsed wrong — `COPY <<EOF /etc/hostname` failed on the ubuntu leg
-          # and passed on the debian one with the same text, which is a
-          # difference no log so far can show.
+          # The build runs as root, so the image lands in the root store that
+          # the later `sudo podman run` steps read.
+          # A build that fails inside buildah names the step and never the
+          # Containerfile, so the log prints the file first.
           echo "::group::${IMAGE} Containerfile"
           cat "${ROOT}/generated/${IMAGE}/Containerfile"
           echo "::endgroup::"
           cd "$ROOT" && sudo IMAGE_REGISTRY="$IMAGE_REGISTRY" \
             "$TECT_BIN" build --no-tui
-          # Each alternates image after it, and nothing after this step reads
-          # the one before, so it is dropped to leave the runner the room.
+          # No later step reads the previous image, so it is removed to free
+          # disk space.
           shopt -s nullglob
           previous="$IMAGE"
           for alt in "${NAMES}".[0-9]*; do
@@ -672,23 +612,12 @@ jobs:
             previous="$target"
           done
 
-      # The build already ran `bootc container lint`, and it cannot see either
-      # of the two things this base got wrong. `Containerfile.skeleton` runs it
-      # as `--mount=type=tmpfs,target=/run`, so **content left in /run is
-      # masked by construction** — every deb image the tool has ever built
-      # carried it and no run said so. And it runs without `--fatal-warnings`,
-      # which `bootc container lint` needs to exit non-zero at all: undeclared
-      # accounts were reported and the layer passed anyway. Both are the tool's
-      # to fix; until it does, the finished image is where a deb base is
-      # actually measured, and this is the step that measures it.
-      #
-      # Both legs, not the Ubuntu one. The /run content is a deb-family fact
-      # that Debian carried unnoticed for as long as it has existed, precisely
-      # because nothing looked; a check only the newer family runs leaves the
-      # older one free to regress. The man page count is the
-          # `dpkg.cfg.d/excludes` repair from `deb/build-environment`,
-      # asserted where it
-      # lands rather than where it runs.
+      # The tool's `Containerfile.skeleton` runs `bootc container lint` with
+      # `/run` on a tmpfs, so that lint misses content left in `/run`. It also
+      # runs without `--fatal-warnings`, so that lint passes a layer it warns
+      # about. This step lints the finished image on every bootc-base leg.
+      # The man1 page count checks the `dpkg.cfg.d/excludes` repair in
+      # `deb/build-environment`.
       - name: Lint the built base
         if: matrix.image == 'bootc-base'
         run: |
@@ -700,9 +629,8 @@ jobs:
           echo "::notice::the ${FAMILY} bootc base carries ${pages} man1 pages"
           [ "$pages" -gt 0 ]
 
-      # What the last scan of this image passed, rule by rule. `tect scap`
-      # reads it before it rewrites it, so a regression is one red run and then
-      # the new floor, rather than a cache entry somebody has to go and delete.
+      # `tect scap` compares the scan with this pass set and then rewrites it.
+      # A regression fails one run and then becomes the new baseline.
       - name: Restore the last scan's pass set
         if: matrix.image == 'hardening' && steps.build.outcome != 'skipped'
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -711,8 +639,8 @@ jobs:
           key: scap-machine-${{ matrix.image }}-${{ github.run_id }}
           restore-keys: scap-machine-${{ matrix.image }}-
 
-      # The consumer smoke test's boot path: installed as the recipe says, and
-      # booted, so the kernel, the services and the mounts are the machine's.
+      # `smoke.sh` installs and boots the image, so the scan sees the
+      # machine's own kernel, services and mounts.
       - name: Boot the image
         if: matrix.image == 'hardening' && steps.build.outcome != 'skipped'
         timeout-minutes: 30
@@ -720,13 +648,14 @@ jobs:
           set -euo pipefail
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends qemu-system-x86 ovmf
-          # qemu runs as the runner user, which is in no group that owns it
+          # qemu runs as the runner user. That user is in no group that owns
+          # `/dev/kvm`.
           sudo chmod 666 /dev/kvm
           "${ROOT}/generated/scripts/smoke.sh" "${IMAGE}:latest" "${RUNNER_TEMP}/vm"
 
-      # The content is the image's own, the revision the build remediated
-      # with, installed onto the machine under `bootc usr-overlay`, which lasts
-      # until the next boot. Files travel over ssh as root's own.
+      # The datastream is the revision that the build remediated with. The
+      # scanner installs under `bootc usr-overlay`. That overlay ends at the
+      # next boot.
       - name: Evaluate the rules
         if: matrix.image == 'hardening' && steps.build.outcome != 'skipped'
         run: |
@@ -737,8 +666,8 @@ jobs:
           }
           content="$(cd "$ROOT" && "$TECT_BIN" scap content --target "$IMAGE")"
           s bootc usr-overlay
-          # A transient mirror error is the same red X as a false claim, so
-          # the install retries.
+          # The install retries, because a mirror error fails the leg like a
+          # false claim.
           s 'n=0
             until dnf -y install openscap-scanner scap-security-guide >/dev/null; do
               n=$((n+1))
@@ -760,18 +689,16 @@ jobs:
         if: matrix.image == 'hardening' && steps.build.outcome != 'skipped'
         run: |
           set -euo pipefail
-          # `--base-scan` is the committed bare-base pass set, so a claim the
-          # base already passes reads as not load-bearing rather than as this
-          # module's work. It adds a column before Result and moves no row.
+          # `--base-scan` marks a claim that the bare base already passes. It
+          # adds a column before Result and moves no row.
           report="$("$TECT_BIN" scap "${RUNNER_TEMP}/arf.xml" \
             --root "$ROOT" --target "$IMAGE" --datastream "$DATASTREAM" \
             --base-scan "${GITHUB_WORKSPACE}/.ci/centos-bootc-stream10-base-scan.json" \
             --baseline "${RUNNER_TEMP}/baseline.json")"
           printf '%s\n' "$report"
-          # The scaffolded repository does not enforce, so `tect scap` reports
-          # a bad claim and still exits 0. Every claim row has to be green here
-          # or a red collection is the only thing that catches it.
-          rows="$(printf '%s\n' "$report" | grep '^| tectonic-modules/' || true)"
+          # The scaffolded repository does not enforce, so `tect scap` exits 0
+          # on a failed claim.
+          rows="$(printf '%s\n' "$report" | grep '^| tectonic-components/' || true)"
           if [ -z "$rows" ]; then
             echo '::error::the report declared no claim at all'; exit 1
           fi
@@ -781,9 +708,8 @@ jobs:
             echo '::error::a declared claim was not measured as passing'; exit 1
           fi
 
-          # The ratchet is red or it is a report nobody acts on. It catches a
-          # rule lost between two runs that both meet the floor, which is what
-          # a base bump un-hardening the image looks like.
+          # The baseline catches a rule lost between two runs that both meet
+          # the floor, such as after a base update.
           case "$report" in
             *'this run is the baseline.'* | \
               *'Nothing that passed before stopped passing.'*) ;;
@@ -793,9 +719,8 @@ jobs:
               ;;
           esac
 
-          # The floor. The declared profile is the only row carrying the
-          # marker, so no row at all means the name is not one the datastream
-          # carries, which is the other half of the done-when.
+          # Only the declared profile row carries the `(declared)` marker. No
+          # such row means the datastream has no profile of that name.
           fails="$(printf '%s\n' "$report" \
             | awk -F'|' '/\(declared\)/ { gsub(/ /, "", $5); print $5 }')"
           if [ -z "$fails" ]; then
@@ -813,7 +738,7 @@ jobs:
             echo "::notice::the floor is loose and could come down to ${fails}"
           fi
 
-      # The report counts failures and names none; the ARF names them.
+      # The report counts failures and names none. The ARF names them.
       - name: Keep the scan report
         if: always() && matrix.image == 'hardening' && steps.build.outcome != 'skipped'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

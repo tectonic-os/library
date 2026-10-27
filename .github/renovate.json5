@@ -7,10 +7,9 @@
     ":gitSignOff",
   ],
 
-  // Renovate updates the workflows' SHA-pinned actions here and nothing else.
-  // The `renovate` annotations on a module's pins serve a repository that
-  // copies the module with `tect import module`; nothing bumps them in this
-  // collection.
+  // Renovate updates only the workflow actions here. The `renovate`
+  // annotations on component pins serve a repository that imports the
+  // component.
   "enabledManagers": ["github-actions"],
   // The pull request title check requires a typed subject, and Renovate
   // otherwise guesses the commit style from the history.
@@ -18,9 +17,8 @@
   "rebaseWhen": "never",
   "timezone": "Etc/UTC",
   "schedule": ["before 6am"],
-  // Renovate proposes a release only after it has stood for a week, so a
-  // compromised release can be yanked before an automerge takes it. Renovate
-  // holds back a release that carries no timestamp.
+  // A week lets a compromised release be yanked before an automerge takes
+  // it. Renovate holds back a release that carries no timestamp.
   "minimumReleaseAge": "7 days",
 
   "packageRules": [

@@ -1,0 +1,12 @@
+schema-version 1
+
+description "LLMNR off and resolv.conf pointed at the systemd-resolved stub"
+
+targets "fedora" "rhel" "debian" "ubuntu"
+
+// The `resolv.conf` link ships for Fedora and the deb family only. EL has no
+// systemd-resolved. `deb/bootc-base` ships the same link, and the identical
+// second rule changes nothing.
+//
+// The NetworkManager drop-in has no effect until a component such as
+// `desktop-environment/kde-plasma` installs NetworkManager.

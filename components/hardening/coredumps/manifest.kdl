@@ -1,0 +1,12 @@
+schema-version 1
+
+description "Coredumps disabled in systemd and the rlimits"
+
+targets "fedora" "rhel" "debian" "ubuntu"
+
+// The claim is gated because no deb datastream has a rule for `Req-3.2`.
+on "fedora" "rhel" {
+    satisfies {
+        pci-dss "Req-3.2"
+    }
+}

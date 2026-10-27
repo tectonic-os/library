@@ -1,0 +1,9 @@
+schema-version 1
+
+description "Firefox from Mozilla's own apt archive"
+
+targets "debian" "ubuntu"
+
+requires "build-environment" "graphical-session"
+
+packages "firefox"

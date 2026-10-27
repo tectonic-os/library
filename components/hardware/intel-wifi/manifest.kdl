@@ -1,0 +1,18 @@
+schema-version 1
+
+description "Intel WiFi firmware for iwlwifi adapters"
+
+targets "fedora" "debian" "ubuntu"
+
+on "fedora" { packages "iwlwifi-mvm-firmware" "iwlwifi-mld-firmware" }
+
+// `debian:forky` configures `Components: main` alone, and firmware is not in
+// it. The component is what the requirement is for; the package is one name.
+on "debian" {
+    requires "non-free-firmware"
+    packages "firmware-iwlwifi"
+}
+
+// Ubuntu splits `linux-firmware` per vendor, so this is the Intel wireless
+// half rather than the metapackage that carries every adapter Linux knows.
+on "ubuntu" { packages "linux-firmware-intel-wireless" }

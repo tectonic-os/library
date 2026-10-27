@@ -1,0 +1,28 @@
+# Packages come from the image and /usr is read-only, so apt's timers can only
+# fail. The dpkg admindir travels with the image under /usr, so
+# dpkg-db-backup has nothing to save.
+disable apt-daily.timer
+disable apt-daily-upgrade.timer
+disable dpkg-db-backup.timer
+
+# On a first boot, `preset-all` enables each unit that no preset names. This
+# keeps the socket off, and `login-access` enables `ssh.service`.
+disable ssh.socket
+
+# The signed deb GRUB cannot read BLS entries, so these units render the menu.
+# The path unit rewrites it after `bootc upgrade` stages an entry.
+enable grub-menu-from-bls.service
+enable grub-menu-from-bls.path
+
+# The unit's own conditions skip it on a layout that does not need it.
+enable sysroot-boot.mount
+
+# bootc writes its BLS entries through the read-only `/sysroot/boot` bind.
+# This makes the bind writable.
+enable sysroot-boot-rw.service
+
+# Debian enables nothing that configures a link. This unit and
+# `89-ethernet.network` give an installed machine an address. If
+# NetworkManager is installed, then `finalize.sh` removes the `.network` file.
+# networkd stays enabled, because its socket units fail if it cannot run.
+enable systemd-networkd.service

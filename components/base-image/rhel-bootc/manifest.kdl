@@ -14,9 +14,10 @@ provides {
     "bootupctl" witness="/usr/bin/bootupctl"
     "podman" witness="/usr/bin/podman"
     "crun" witness="/usr/bin/crun"
+    "package-manager/dnf4" witness="/usr/bin/dnf4"
 }
 
-imports "fedora/build-environment" "package-manager/dnf4" "identity"
+imports "fedora/build-environment" "identity"
 
 base "registry.redhat.io/rhel10/rhel-bootc:$version" {
     family "rhel"

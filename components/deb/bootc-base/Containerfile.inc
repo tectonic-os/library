@@ -9,8 +9,9 @@ CMD ["/sbin/init"]
 RUN rm -rf /var/cache/* /var/log/*
 
 # The Debian base sets `/etc/hostname` to `debuerreotype`. That name outranks
-# the `DEFAULT_HOSTNAME` from `tect os-release`. The file beside this one holds
-# a single newline, so systemd falls back to `DEFAULT_HOSTNAME`.
+# the `DEFAULT_HOSTNAME` that the identity component writes into os-release.
+# The file beside this one holds a single newline, so systemd falls back to
+# `DEFAULT_HOSTNAME`.
 #
 # The build backend bind-mounts this path into every `RUN`, so only a `COPY`
 # can replace it. Some buildah versions parse a heredoc's `EOF` as an

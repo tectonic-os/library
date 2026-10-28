@@ -2,5 +2,5 @@ schema-version 1
 
 description "The image's own name in os-release"
 
-// The build renders os-release right after this component's layer, so the component ships no files.
-provides "os-release" witness="/usr/lib/os-release" exclusive=#true
+// Every base image ships /usr/lib/os-release, so a witness proves nothing.
+provides "os-release" exclusive=#true

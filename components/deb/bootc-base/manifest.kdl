@@ -18,6 +18,10 @@ provides {
 
 requires "build-environment"
 
+// dracut copies os-release into the initramfs at image build time.
+// The identity component writes the image's own name there first.
+after "os-release"
+
 // bootc runs `podman images` to open its composefs store. This requirement
 // lets `tect check` report a missing runtime before a build.
 requires "container-runtime"

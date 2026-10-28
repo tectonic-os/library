@@ -2,7 +2,11 @@ schema-version 1
 
 description "An Ubuntu LTS bootc image"
 
-imports "deb/build-environment" "package-manager/apt" "deb/bootc-base" "identity"
+provides {
+    "package-manager/apt" witness="/usr/bin/apt-get"
+}
+
+imports "deb/build-environment" "deb/bootc-base" "identity"
 
 base "docker.io/library/ubuntu:$version" {
     family "ubuntu"

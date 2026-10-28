@@ -8,7 +8,11 @@ schema-version 1
 
 description "Debian, which a component set has to turn into a bootc image"
 
-imports "deb/build-environment" "package-manager/apt" "deb/bootc-base" "identity"
+provides {
+    "package-manager/apt" witness="/usr/bin/apt-get"
+}
+
+imports "deb/build-environment" "deb/bootc-base" "identity"
 
 base "docker.io/library/debian:$version" {
     family "debian"

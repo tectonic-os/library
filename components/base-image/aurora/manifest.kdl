@@ -8,9 +8,10 @@ provides {
     "flatpak" witness="/usr/bin/flatpak"
     "just" witness="/usr/bin/just"
     "plasma-desktop" witness="/usr/bin/plasmashell"
+    "package-manager/dnf5" witness="/usr/bin/dnf5"
 }
 
-imports "fedora/build-environment" "package-manager/dnf5" "identity"
+imports "fedora/build-environment" "identity"
 
 base "ghcr.io/ublue-os/aurora:$version" {
     family "fedora"

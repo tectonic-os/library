@@ -20,6 +20,10 @@ key "secureboot" {
 
 requires "build-environment" "initramfs-generation"
 
+// dracut copies os-release into the initramfs at image build time.
+// The identity component writes the image's own name there first.
+after "os-release"
+
 copr "bieszczaders/kernel-cachyos"
 copr "bieszczaders/kernel-cachyos-addons"
 

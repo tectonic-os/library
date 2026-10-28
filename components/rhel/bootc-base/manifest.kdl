@@ -26,6 +26,10 @@ provides "ssh" witness="/usr/sbin/sshd"
 
 requires "build-environment"
 
+// dracut copies os-release into the initramfs at image build time.
+// The identity component writes the image's own name there first.
+after "os-release"
+
 // This omits `initramfs-generation`, because a dependent's hook would run
 // after `finalize.sh` builds the initramfs. CI reads `rechunking` from the
 // base alone.

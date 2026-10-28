@@ -1,0 +1,144 @@
+name: Probe the base components
+
+# A consumer's base probe reports drift in a base's `provides` and edits no
+# component. This workflow measures each base component here and opens one
+# correction, so a consumer takes it as a component update.
+on:
+  schedule:
+    - cron: '30 5 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: Probe each base and correct its provides
+    # A dispatch from another branch would rebuild the correction from that
+    # branch and point the pull request at it.
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true
+
+      - name: Maximize disk space
+        run: |
+          # The ublue bases are several gigabytes each.
+          # The probe pulls them one at a time.
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc \
+            /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/share/swift \
+            /usr/local/share/powershell /usr/local/share/chromium
+          df -h /
+
+      - name: Measure each base
+        id: probe
+        run: |
+          set -euo pipefail
+          # `set -e` never sees the exit status of a process substitution.
+          # A failed list read in one would pass as every base matching.
+          bases="$(python3 .github/probe.py list)"
+          if [ -z "${bases}" ]; then
+            echo "::error::probe.py list printed no base component"
+            exit 1
+          fi
+          said=""
+          skipped=""
+          failed=""
+          while read -r dir image paths; do
+            # A registry that needs a login refuses the pull as unauthorized.
+            # Quay answers a missing repository the same way.
+            # That base keeps what it declares, and the run summary names it.
+            if ! refused="$(podman pull -q "${image}" 2>&1 > /dev/null)"; then
+              printf '%s\n' "${refused}" >&2
+              if grep -qi unauthorized <<< "${refused}"; then
+                echo "::warning::${image} refused the pull as unauthorized, so ${dir} was not measured"
+                skipped="${skipped}${skipped:+, }\`${dir}\`"
+              else
+                echo "::error::${image} did not pull, so ${dir} was not measured"
+                failed="${failed}${failed:+, }\`${dir}\`"
+              fi
+              continue
+            fi
+            measured="$(podman run --rm --env "PATHS=${paths}" "${image}" \
+              sh -c 'for p in $PATHS; do [ -e "$p" ] && echo "$p"; done; true')"
+            readarray -t present <<< "${measured}"
+            change="$(python3 .github/probe.py correct "${dir}" "${present[@]}")"
+            if [ -n "${change}" ]; then
+              echo "${change}"
+              said="${said}${said:+$'\n'}- ${change}"
+            fi
+            podman rmi -f "${image}" > /dev/null
+          done <<< "${bases}"
+          {
+            echo "skipped=${skipped}"
+            echo "failed=${failed}"
+          } >> "${GITHUB_OUTPUT}"
+          if [ -n "${said}" ]; then
+            printf 'said<<EOF\n%s\nEOF\n' "${said}" >> "${GITHUB_OUTPUT}"
+          fi
+          if [ -n "${skipped}${failed}" ]; then
+            echo "Not measured: ${skipped}${skipped:+${failed:+, }}${failed}" >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Open or update the correction
+        if: steps.probe.outputs.said != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SAID: ${{ steps.probe.outputs.said }}
+          SKIPPED: ${{ steps.probe.outputs.skipped }}
+        run: |
+          set -euo pipefail
+          branch="base-probe"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "${branch}"
+          git add components/base-image
+          # A reopened pull request runs the DCO check.
+          # That check reads a sign-off by the commit's author.
+          git commit -s -m "fix(base-image): record what the base images ship" -m "${SAID}"
+          git push --force origin "${branch}"
+          body="$(mktemp)"
+          {
+            echo "The base probe measured each base image against its \`provides\`:"
+            echo
+            echo "${SAID}"
+            echo
+            if [ -n "${SKIPPED}" ]; then
+              echo "Not measured, because the registry refused the pull as unauthorized: ${SKIPPED}."
+              echo
+            fi
+            echo "A name without a \`witness=\` is never measured and keeps its line."
+            echo
+            echo "GitHub starts no workflow for a pull request that the workflow token"
+            echo "opens or pushes to. Close and reopen this pull request to run its checks."
+          } > "${body}"
+          # `gh pr view` also finds a merged pull request, so only an open
+          # one is updated.
+          number="$(gh pr list --head "${branch}" --state open --json number \
+            --jq '.[0].number // empty')"
+          if [ -n "${number}" ]; then
+            gh pr edit "${number}" --body-file "${body}"
+            echo "updated the open correction #${number}"
+            exit 0
+          fi
+          gh pr create --base "${GITHUB_REF_NAME}" --head "${branch}" \
+            --title "fix(base-image): record what the base images ship" \
+            --body-file "${body}"
+
+      - name: Fail on a base that did not pull
+        if: steps.probe.outputs.failed != ''
+        env:
+          FAILED: ${{ steps.probe.outputs.failed }}
+        run: |
+          echo "::error::not measured: ${FAILED}"
+          exit 1

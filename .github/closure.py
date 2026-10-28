@@ -84,19 +84,29 @@ def is_base(text):
     return BASE.search(text) is not None
 
 
+def manifests(components):
+    """Yield the path, the manifest and the text of each component under
+    `components`. A directory whose name starts with a dot holds none."""
+    for manifest in sorted(components.rglob("manifest.kdl")):
+        if any(part.startswith(".") for part in manifest.relative_to(components).parts[:-1]):
+            continue
+        yield manifest.parent.relative_to(components).as_posix(), manifest, manifest.read_text()
+
+
+def reference(text):
+    """Return the image that a base manifest builds from at its `version`
+    default."""
+    version = VERSION.search(text)
+    return BASE.search(text).group(1).replace("$version", version.group(1) if version else "")
+
+
 def base_needs(components, image):
     """Return the requirements and the imports of the one base component built
     from `image`."""
     wanted = image.split("@", 1)[0]
     matches = []
-    for manifest in sorted(components.rglob("manifest.kdl")):
-        text = manifest.read_text()
-        found = BASE.search(text)
-        if not found:
-            continue
-        version = VERSION.search(text)
-        reference = found.group(1).replace("$version", version.group(1) if version else "")
-        if reference != wanted:
+    for _, manifest, text in manifests(components):
+        if not is_base(text) or reference(text) != wanted:
             continue
         lists = declared(text, top=True)
         matches.append((manifest.parent, (lists["requires"], lists["imports"])))
@@ -185,11 +195,8 @@ def main(argv):
     family, base, wanted = argv[1], argv[2], argv[3:]
 
     components = {}
-    for manifest in sorted(COMPONENTS.rglob("manifest.kdl")):
-        name = manifest.parent.relative_to(COMPONENTS).as_posix()
-        if any(part.startswith(".") for part in manifest.parts[:-1]):
-            continue
-        if is_base(manifest.read_text()):
+    for name, manifest, text in manifests(COMPONENTS):
+        if is_base(text):
             continue
         components[name] = read(manifest)
         # A component provides its own path, so a requirement can name it.

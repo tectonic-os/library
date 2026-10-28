@@ -6,6 +6,8 @@ provides {
     "rechunking"
     "graphical-session"
     "flatpak" witness="/usr/bin/flatpak"
+    "just" witness="/usr/bin/just"
+    "plasma-desktop" witness="/usr/bin/plasmashell"
 }
 
 imports "fedora/build-environment" "package-manager/dnf5" "identity"

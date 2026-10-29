@@ -1,0 +1,9 @@
+schema-version 1
+
+description "The Fedora repositories, which need no extra configuration."
+
+targets "fedora"
+
+requires "build-environment"
+
+packages "ffmpeg-free"

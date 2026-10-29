@@ -1,0 +1,11 @@
+schema-version 1
+
+description "The RPM Fusion free and nonfree repositories."
+
+targets "fedora"
+
+provides "rpm-fusion"
+
+requires "build-environment"
+
+packages "ffmpeg" "ffmpeg-libs"

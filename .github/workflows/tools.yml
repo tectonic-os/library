@@ -129,8 +129,10 @@ jobs:
           set -euo pipefail
           cd "${RUNNER_TEMP}/out"
           # Both family jobs create the same tag, so the later create fails.
-          gh release create "$TAG" --title "$TAG" --notes \
+          # This step runs in the output directory, where no git remote names
+          # the repository.
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TAG" --notes \
             "The bootc and bootupd trees \`deb/bootc-base\` installs, compiled from its pins." \
             || true
-          gh release upload "$TAG" "$TARBALL"
+          gh release upload "$TAG" "$TARBALL" --repo "$GITHUB_REPOSITORY"
           echo "::notice::${COMPONENT}/manifest.kdl: bootc-tools-${FAMILY} is version \"${VERSION}\" sha256 \"$(sha256sum "$TARBALL" | cut -d' ' -f1)\""

@@ -318,9 +318,9 @@ jobs:
             # `$NAMES` holds one provider of each capability. The alternative
             # providers go into `$NAMES.1` onwards, one image each.
             collection)
-              # A base is the image's `base` entry, so no leg lists one.
-              mapfile -t all < <(find components -mindepth 2 -name manifest.kdl -not -path '*/.*' \
-                -not -path 'components/base-image/*' -printf '%h\n' | sed 's|^components/||' | sort)
+              # A base is the image's `base` entry, and a repository is an
+              # option's alternative, so the collection leg lists neither.
+              mapfile -t all < <(python3 .github/closure.py --features)
               python3 .github/closure.py --split "$FAMILY" "$BASE" "${all[@]}" \
                 | awk -v n="$NAMES" '{ print $2 > ($1 == 0 ? n : n "." $1) }'
               for alt in "${NAMES}".[0-9]*; do

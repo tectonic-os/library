@@ -6,10 +6,16 @@ closure adds a provider for each requirement. Run from the library root.
 
     closure.py <family> <base> <name>...
     closure.py --split <family> <base> <name>...
+    closure.py --features
 
 `--split` prints `<image> <component>` lines for the collection leg. Image 0
 holds the named components with one provider of each capability. Each later
 image holds alternative providers, closed over their requires.
+
+`--features` prints every component that a collection leg may list. A base is
+the image's `base` entry, and a component under the directory that an optioned
+import selects from is one of that option's alternatives, so neither is a
+feature.
 
 A requirement that no component here provides is left alone. The base provides
 some, such as `rechunking`. In the plain form, requirements print before the
@@ -20,7 +26,8 @@ closure covers them too. The base component declares a `base` reference that,
 with its `version` default, matches `<base>` without its digest.
 
 An entry for an imported component fails `tect check`, so no import is printed.
-Its requirements are still closed over.
+Its requirements are still closed over. An import path resolves the default of
+the option it names.
 
 A `key` node provides `<kind>-key`. A component without `targets` targets every
 family.
@@ -124,8 +131,11 @@ def targets(component, family):
 
 def read(path):
     text = path.read_text()
-    targeted, provides = set(), set()
+    targeted, provides, options = set(), set(), {}
     for parents, name, args in nodes(text):
+        if name == "default" and args and parents and parents[-1][0] == "option":
+            options[parents[-1][1][0]] = args[0]
+            continue
         if parents or not args:
             continue
         if name == "targets":
@@ -134,7 +144,15 @@ def read(path):
             provides.add(args[0] + "-key")
     lists = declared(text, top=False)
     provides.update(lists["provides"])
-    return targeted, provides, set(lists["requires"]), set(lists["imports"])
+    imports = {
+        re.sub(
+            r"\$([A-Za-z0-9-]+)",
+            lambda match: options.get(match.group(1) or "", match.group(0)),
+            imported_path,
+        )
+        for imported_path in lists["imports"]
+    }
+    return targeted, provides, set(lists["requires"]), imports
 
 
 def imported(components, base_imports, names):
@@ -187,7 +205,32 @@ def split(components, family, names):
     return groups
 
 
+def option_dirs(components):
+    """Return each directory that an optioned import selects from."""
+    out = set()
+    for _, _, text in manifests(components):
+        for imported in declared(text, top=False)["imports"]:
+            prefix = imported.split("$", 1)[0]
+            if prefix.endswith("/"):
+                out.add(prefix)
+    return out
+
+
+def features(components):
+    """Return the components a collection leg may list."""
+    prefixes = option_dirs(components)
+    return [
+        name
+        for name, _, text in manifests(components)
+        if not is_base(text) and not any(name.startswith(prefix) for prefix in prefixes)
+    ]
+
+
 def main(argv):
+    if argv[1:2] == ["--features"]:
+        for name in features(COMPONENTS):
+            print(name)
+        return
     splitting = argv[1:2] == ["--split"]
     argv = [argv[0]] + argv[2:] if splitting else argv
     if len(argv) < 3:

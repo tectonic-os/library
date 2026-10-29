@@ -1,0 +1,13 @@
+schema-version 1
+
+description "The Fedora Multimedia repository from negativo17."
+
+targets "fedora"
+
+provides "negativo17-fedora-multimedia"
+
+requires "build-environment"
+
+packages "ffmpeg" "ffmpeg-libs" "pipewire-libs-extra"
+
+network "scripts"
